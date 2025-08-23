@@ -43,7 +43,7 @@ const LogoutButton = () => {
         padding: 5,
       }}
     >
-      <LogoutIcon width={24} height={24} color={COLORS.textPrimary} />
+      <LogoutIcon width={20} height={20} color={COLORS.textSecondary} />
     </TouchableOpacity>
   );
 };

@@ -13,7 +13,6 @@ import {
   Picker,
   ActivityIndicator,
   Badge,
-  Text,
   Toast,
 } from '@ant-design/react-native';
 import dayjs from 'dayjs';
@@ -25,12 +24,25 @@ import { getNetworkErrorInfo } from '../utils/network-utils';
 import { getLastCacheUpdate } from '../utils/cache-utils';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { offlineSyncService } from '../services/offline-sync';
+import { showNetworkError } from '../utils/notifications';
+import { Text } from '../components/CustomText';
 
 const STATUS_COLOR: Record<string, string> = {
-  draft: '#FAAD14',
-  in_transit: '#1890FF',
-  completed: '#52C41A',
-  offline: '#FAAD14',
+  draft: '#F1F5F9',
+
+  in_transit: '#F97317',
+  arrived: '#F97317',
+
+  completed: '#22C55E',
+  accepted: '#22C55E',
+  left: '#22C55E',
+
+  lab_analyzed: '#0DA5E9',
+  pile_selected: '#0DA5E9',
+  boom_selected: '#0DA5E9',
+
+  offline: '#F87316',
+  declined: '#EF4444',
 };
 
 const statusOptions = [
@@ -38,6 +50,7 @@ const statusOptions = [
   { label: 'Черновик', value: 'draft' },
   { label: 'В пути', value: 'in_transit' },
   { label: 'Завершён', value: 'completed' },
+  { label: 'Отклонён', value: 'declined' },
 ];
 
 const ShipmentsListScreen = ({
@@ -105,7 +118,7 @@ const ShipmentsListScreen = ({
         }
       } catch (error: any) {
         const errorMessage = getNetworkErrorInfo(error);
-        Toast.fail(errorMessage, 3);
+        showNetworkError();
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -153,9 +166,16 @@ const ShipmentsListScreen = ({
                 styles.badge,
                 { backgroundColor: STATUS_COLOR[item.status.value] },
               ]}
-              styles={{ text: styles.badgeText }}
-              text={item.status.label}
-            />
+            >
+              <Text
+                style={{
+                  ...styles.badgeText,
+                  color: item.status.value === 'draft' ? 'gray' : COLORS.card,
+                }}
+              >
+                {item.status.label}
+              </Text>
+            </Badge>
             {/* Пометка "Офлайн" для офлайн рейсов */}
             {item.status.value === 'offline' ? (
               <Badge
@@ -189,6 +209,30 @@ const ShipmentsListScreen = ({
               : '—'}{' '}
           </Text>
         </View>
+        {item.status.value === 'declined' && item?.declined_reason ? (
+          <View
+            style={{
+              display: 'flex',
+              paddingBottom: 12,
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginTop: 12,
+            }}
+          >
+            <Text
+              style={{
+                ...styles.value,
+                textAlign: 'left',
+                color: COLORS.danger,
+                fontWeight: '600',
+              }}
+            >
+              {item.declined_reason || '—'}
+            </Text>
+          </View>
+        ) : (
+          <View />
+        )}
       </Card>
     </TouchableOpacity>
   );
@@ -220,20 +264,26 @@ const ShipmentsListScreen = ({
         <View />
       )}
 
-      {/* Фильтр по статусу - скрываем в офлайн режиме */}
       {!isNetworkLoading && !isOffline ? (
-        <List style={styles.filterList}>
-          <Picker
-            data={statusOptions}
-            cols={1}
-            value={[filterStatus]}
-            onChange={val => setFilterStatus(val[0] as string)}
-            cascade={false}
-            extra="Выбрать"
-          >
-            <List.Item arrow="horizontal">Фильтр по статусу</List.Item>
-          </Picker>
-        </List>
+        <View
+          style={{
+            borderBottomWidth: 1,
+            borderColor: COLORS.border,
+          }}
+        >
+          <List style={styles.filterList}>
+            <Picker
+              data={statusOptions}
+              cols={1}
+              value={[filterStatus]}
+              onChange={val => setFilterStatus(val[0] as string)}
+              cascade={false}
+              extra="Выбрать"
+            >
+              <List.Item arrow="horizontal">Фильтр по статусу</List.Item>
+            </Picker>
+          </List>
+        </View>
       ) : (
         <View />
       )}
@@ -275,7 +325,10 @@ const ShipmentsListScreen = ({
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background, marginTop: 8 },
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -311,11 +364,11 @@ const styles = StyleSheet.create({
   filterList: {
     backgroundColor: COLORS.card,
     marginHorizontal: 16,
-    marginBottom: 8,
-    borderRadius: 8,
+    borderRadius: 12,
     overflow: 'hidden',
+    marginVertical: 12,
   },
-  listContent: { paddingHorizontal: 16, paddingBottom: 16 },
+  listContent: { paddingHorizontal: 16, paddingVertical: 16 },
   cardContainer: { marginBottom: 12 },
   card: {
     borderRadius: 8,
@@ -332,8 +385,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
+    marginLeft: -4,
   },
-  vehicleText: { fontSize: 20, fontWeight: '600', color: COLORS.primary },
+  vehicleText: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+  },
   badgeContainer: {
     flexDirection: 'row',
     alignItems: 'center',

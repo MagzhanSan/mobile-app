@@ -8,7 +8,8 @@ export type Role =
   | 'lab_assistant'
   | 'pile_operator'
   | 'boom_operator'
-  | 'weight_operator';
+  | 'weight_operator'
+  | 'security';
 
 export type Counterparty = {
   id: number;
@@ -180,6 +181,7 @@ export interface Shipment {
   consignments: Consignment[] | '-';
   action_log: ActionLog[] | '-';
   departure_time: string; // ISO date string
+  declined_reason: string | null;
   estimated_arrival_time: string; // ISO date string
   actual_arrival_time: string | null;
   status: {
@@ -209,7 +211,7 @@ export type ShipmentRequest = {
   tare_weight?: number;
   net_weight?: number;
   departure_time: string;
-  estimated_arrival_time: string;
+  estimated_arrival_time: number;
   user_id: string;
 };
 

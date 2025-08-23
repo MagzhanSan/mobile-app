@@ -2,24 +2,19 @@ import { SafeAreaView, View, StyleSheet, Alert } from 'react-native';
 import { Card, Button, Text } from '@ant-design/react-native';
 import { COLORS } from '../consts/colors';
 import { useAuth } from '../contexts/auth-context';
+import { showLogoutConfirm } from '../utils/notifications';
 
 const ProfileScreen = () => {
   const { user, logout } = useAuth();
 
   const handleLogout = () => {
-    Alert.alert('Выход', 'Вы уверены, что хотите выйти?', [
-      { text: 'Отмена', style: 'cancel' },
-      {
-        text: 'Выйти',
-        onPress: async () => {
-          try {
-            await logout();
-          } catch (error) {
-            console.error('Logout error:', error);
-          }
-        },
-      },
-    ]);
+    showLogoutConfirm(async () => {
+      try {
+        await logout();
+      } catch (error) {
+        console.error('Logout error:', error);
+      }
+    });
   };
 
   return (

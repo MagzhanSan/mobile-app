@@ -15,6 +15,7 @@ import {
 } from '../utils/offline-storage';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { Toast } from '@ant-design/react-native';
+import { showServerError } from '../utils/notifications';
 
 interface AuthContextType {
   user: User | null;
@@ -58,7 +59,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       setUser(response.data.user);
     } catch (error) {
-      Toast.fail((error as any)?.response?.data?.message || 'Произошла ошибка');
+      showServerError();
       throw error;
     } finally {
       setIsLoading(false);

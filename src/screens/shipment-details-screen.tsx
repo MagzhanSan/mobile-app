@@ -10,7 +10,6 @@ import {
   Card,
   ActivityIndicator,
   Badge,
-  Text,
   Toast,
 } from '@ant-design/react-native';
 import dayjs from 'dayjs';
@@ -26,11 +25,25 @@ import { shipmentsApi } from '../api/shipments-api';
 import QRCodeBottomSheet from '../components/QRCodeBottomSheet';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { offlineSyncService } from '../services/offline-sync';
+import { showServerError } from '../utils/notifications';
+import { Text } from '../components/CustomText';
 
 const STATUS_COLOR: Record<string, string> = {
-  draft: '#FAAD14',
-  in_transit: '#1890FF',
-  completed: '#52C41A',
+  draft: '#F1F5F9',
+
+  in_transit: '#F97317',
+  arrived: '#F97317',
+
+  completed: '#22C55E',
+  accepted: '#22C55E',
+  left: '#22C55E',
+
+  lab_analyzed: '#0DA5E9',
+  pile_selected: '#0DA5E9',
+  boom_selected: '#0DA5E9',
+
+  offline: '#F87316',
+  declined: '#EF4444',
 };
 
 type Props = {
@@ -82,7 +95,7 @@ const ShipmentDetailsScreen = ({ navigation, route }: Props) => {
       }
     } catch (error) {
       console.error('Ошибка загрузки данных рейса:', error);
-      Toast.fail('Ошибка загрузки данных', 3);
+      showServerError();
     } finally {
       setLoading(false);
     }
@@ -157,6 +170,7 @@ const ShipmentDetailsScreen = ({ navigation, route }: Props) => {
       driver_info: shipment.driver_info || '',
       vehicle_brand_id: String(shipment.vehicle_brand?.id) || '',
       vehicle_number: shipment.vehicle_number || '',
+      user_id: shipment.user?.id || '',
     };
 
     setQrData(JSON.stringify(qrRequest));
@@ -174,7 +188,7 @@ const ShipmentDetailsScreen = ({ navigation, route }: Props) => {
     }
 
     return (
-      <Card style={styles.card}>
+      <Card style={{ ...styles.card, paddingBottom: 18 }}>
         <Text style={styles.sectionTitle}>Прицепы</Text>
 
         {shipment.consignments.map(
@@ -185,19 +199,19 @@ const ShipmentDetailsScreen = ({ navigation, route }: Props) => {
                 <View style={styles.weightItem}>
                   <Text style={styles.weightLabel}>Брутто</Text>
                   <Text style={[styles.weightValue, { color: '#1890ff' }]}>
-                    {consignment.gross_weight || '—'} кг
+                    {consignment.gross_weight || '—'} т
                   </Text>
                 </View>
                 <View style={styles.weightItem}>
                   <Text style={styles.weightLabel}>Тара</Text>
                   <Text style={[styles.weightValue, { color: '#52c41a' }]}>
-                    {consignment.tare_weight || '—'} кг
+                    {consignment.tare_weight || '—'} т
                   </Text>
                 </View>
                 <View style={styles.weightItem}>
                   <Text style={styles.weightLabel}>Нетто</Text>
                   <Text style={[styles.weightValue, { color: '#fa8c16' }]}>
-                    {consignment.net_weight || '—'} кг
+                    {consignment.net_weight || '—'} т
                   </Text>
                 </View>
               </View>
@@ -301,8 +315,19 @@ const ShipmentDetailsScreen = ({ navigation, route }: Props) => {
                       ),
                     },
                   ]}
-                  text={shipment.status?.label || 'Неизвестно'}
-                />
+                >
+                  <Text
+                    style={{
+                      ...styles.badgeText,
+                      color:
+                        shipment.status.value === 'draft'
+                          ? 'gray'
+                          : COLORS.card,
+                    }}
+                  >
+                    {shipment.status.label}
+                  </Text>
+                </Badge>
                 {/* Пометка "Офлайн" для офлайн рейсов */}
                 {shipment.status?.value === 'offline' ? (
                   <Badge
@@ -367,6 +392,35 @@ const ShipmentDetailsScreen = ({ navigation, route }: Props) => {
             ) : (
               <View />
             )}
+            {shipment.status.value === 'declined' &&
+            shipment.declined_reason ? (
+              <View
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  paddingBottom: 12,
+                }}
+              >
+                <Text
+                  style={{
+                    ...styles.label,
+                    width: '100%',
+                  }}
+                >
+                  Причина отклонения
+                </Text>
+                <Text
+                  style={{
+                    ...styles.value,
+                    textAlign: 'left',
+                  }}
+                >
+                  {shipment.declined_reason || '—'}
+                </Text>
+              </View>
+            ) : (
+              <View />
+            )}
           </Card>
 
           {!basicDataOnly ? (
@@ -412,9 +466,10 @@ const ShipmentDetailsScreen = ({ navigation, route }: Props) => {
                 )}
                 {shipment.is_conditioned !== undefined ? (
                   <View style={styles.itemRow}>
-                    <Text style={styles.label}>Кондиционирован</Text>
-                    <Text style={styles.value}>
-                      {shipment.is_conditioned ? 'Да' : 'Нет'}
+                    <Text style={styles.label}>
+                      {shipment.is_conditioned
+                        ? 'Кондиционный'
+                        : 'Некондиционный'}
                     </Text>
                   </View>
                 ) : (
@@ -512,6 +567,11 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     textAlign: 'center',
   },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: COLORS.card,
+  },
   offlineHint: {
     fontSize: 12,
     color: '#8C8C8C',
@@ -534,7 +594,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  title: { fontSize: 22, fontWeight: '700', color: COLORS.primary },
+  title: { fontSize: 22, fontWeight: '700', color: COLORS.textPrimary },
   badge: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 14 },
   itemRow: {
     flexDirection: 'row',

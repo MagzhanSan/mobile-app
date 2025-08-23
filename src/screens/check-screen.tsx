@@ -18,6 +18,7 @@ import { RESULTS } from 'react-native-permissions';
 import { goToSettings } from '../utils/helpers';
 import { shipmentsApi } from '../api/shipments-api';
 import { Counterparty } from '../types/types';
+import { showPermissionError } from '../utils/notifications';
 
 const CheckScreen: React.FC = () => {
   const { user, logout } = useAuth();
@@ -49,30 +50,16 @@ const CheckScreen: React.FC = () => {
       })
       .catch(error => {
         if ('isError' in error && error.isError) {
-          Alert.alert(
-            error.errorMessage ||
-              'Something went wrong while taking camera permission',
-          );
+          showPermissionError();
         }
         if ('type' in error) {
           if (error.type === RESULTS.UNAVAILABLE) {
-            Alert.alert('This feature is not supported on this device');
+            showPermissionError();
           } else if (
             error.type === RESULTS.BLOCKED ||
             error.type === RESULTS.DENIED
           ) {
-            Alert.alert(
-              'Permission Denied',
-              'Please give permission from settings to continue using camera.',
-              [
-                {
-                  text: 'Cancel',
-                  onPress: () => console.log('Cancel Pressed'),
-                  style: 'cancel',
-                },
-                { text: 'Go To Settings', onPress: () => goToSettings() },
-              ],
-            );
+            showPermissionError();
           }
         }
       });

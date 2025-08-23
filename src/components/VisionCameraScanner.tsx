@@ -17,6 +17,7 @@ import {
 } from 'react-native-vision-camera';
 import { Icon } from '@ant-design/react-native';
 import { COLORS } from '../consts/colors';
+import { showCameraError } from '../utils/notifications';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -58,7 +59,7 @@ export const VisionCameraScanner = ({
 
   const onError = (error: CameraRuntimeError) => {
     console.log('Camera error:', error);
-    Alert.alert('Ошибка камеры', error.message);
+    showCameraError();
   };
 
   const codeScanner = useCodeScanner({

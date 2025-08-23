@@ -13,17 +13,18 @@ import {
   DatePicker,
   Button,
   Provider as AntProvider,
-  InputItem,
   Form,
   WhiteSpace,
   Toast,
   Badge,
   ActivityIndicator,
+  Input,
 } from '@ant-design/react-native';
 import moment from 'moment';
 import uuid from 'react-native-uuid';
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import QRCodeBottomSheet from '../components/QRCodeBottomSheet';
+import ShipmentConfirmationModal from '../components/ShipmentConfirmationModal';
 import { ShipmentRequest } from '../types/types';
 
 import { COLORS } from '../consts/colors';
@@ -37,6 +38,14 @@ import { addOfflineShipment } from '../utils/offline-storage';
 import { addOfflineShipmentToCache } from '../utils/cache-utils';
 import { offlineSyncService } from '../services/offline-sync';
 import { Text } from '../components/CustomText';
+import { timePicker } from '../consts/timepickert';
+import {
+  showBilingualToast,
+  showValidationError,
+  showShipmentCreated,
+  showNetworkError,
+  showServerError,
+} from '../utils/notifications';
 
 const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
   const {
@@ -56,7 +65,12 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
   const [loading, setLoading] = useState(false);
   const [qrData, setQrData] = useState<string>('');
   const [showQRSheet, setShowQRSheet] = useState(false);
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [offlineCount, setOfflineCount] = useState(0);
+  const [selectedVehicleBrand, setSelectedVehicleBrand] = useState<string>('');
+  const [selectedContract, setSelectedContract] = useState<string>('');
+  const [selectedArrivalTime, setSelectedArrivalTime] = useState<string>('');
+  const [confirmationData, setConfirmationData] = useState<any>(null);
 
   const [form] = Form.useForm();
 
@@ -84,11 +98,11 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
       form.resetFields();
       setQrData('');
       setShowQRSheet(false);
-      
+
       // Загружаем свежие данные
       loadVehicleBrands();
       loadContracts();
-      
+
       // Обновляем количество оффлайн рейсов
       const checkOfflineCount = async () => {
         const count = await offlineSyncService.getOfflineCount();
@@ -108,6 +122,58 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
     }, [isFocused]),
   );
 
+  useEffect(() => {
+    if (contracts.length > 0 && !selectedContract) {
+      setSelectedContract(contracts[0].id.toString());
+    }
+  }, [contracts, selectedContract]);
+
+  const prepareConfirmationData = async () => {
+    try {
+      const values = await form.validateFields();
+
+      // Функция для конвертации минут в часы и минуты
+      const formatTimeFromMinutes = (minutes: number | string) => {
+        const mins = Number(minutes);
+        if (isNaN(mins)) return 'Не выбрано';
+
+        const hours = Math.floor(mins / 60);
+        const remainingMinutes = mins % 60;
+
+        if (hours > 0) {
+          return `${hours}ч ${remainingMinutes}мин`;
+        } else {
+          return `${remainingMinutes}мин`;
+        }
+      };
+
+      // Находим название выбранного времени
+      const selectedTimeLabel =
+        timePicker.find(time => time.value.toString() === values?.arrival)
+          ?.label || 'Не выбрано';
+
+      // Находим название выбранного контракта
+      const selectedContractObj = contracts.find(
+        contract => contract.id.toString() === selectedContract,
+      );
+      const selectedContractLabel = selectedContractObj?.number || 'Не выбрано';
+
+      const data = {
+        driverName: values?.driverName || '',
+        vehicleBrand: selectedVehicleBrand || 'Не выбрано',
+        vehicleNumber: values?.vehicle_number || '',
+        contract: selectedContractLabel,
+        arrivalTime: selectedTimeLabel,
+      };
+
+      setConfirmationData(data);
+      setShowConfirmationModal(true);
+    } catch (validationError) {
+      console.error('Form validation error:', validationError);
+      showValidationError('requiredField');
+    }
+  };
+
   const handleSave = async () => {
     try {
       const values = await form.validateFields();
@@ -118,73 +184,72 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
       const payload: ShipmentRequest = {
         id,
         counterparty_bin: user?.counterparty?.bin || '',
-        contract_id: String(values?.contract) || '',
+        contract_id: selectedContract || '',
         driver_info: values?.driverName || '',
-        vehicle_brand_id: String(values?.vehicle) || '',
+        vehicle_brand_id: selectedVehicleBrand || '',
         vehicle_number: values?.vehicle_number || '',
         departure_time: moment().format('YYYY-MM-DD HH:mm:ss'),
-        estimated_arrival_time: moment(values?.arrival).format(
-          'YYYY-MM-DD HH:mm:ss',
-        ),
+        estimated_arrival_time: Number(values?.arrival),
         user_id: user?.id.toString() || '',
       };
 
       // Дополнительная валидация перед отправкой
       if (!payload.counterparty_bin) {
-        Toast.fail('Необходимо указать БИН контрагента');
+        showValidationError('requiredField');
         return;
       }
 
-      if (!payload.contract_id) {
-        Toast.fail('Необходимо указать контракт');
+      if (!selectedContract) {
+        showValidationError('requiredField');
         return;
       }
 
       if (!payload.driver_info || payload.driver_info.length < 2) {
-        Toast.fail('Имя водителя должно содержать минимум 2 символа');
+        showValidationError('requiredField');
         return;
       }
 
-      if (!payload.vehicle_brand_id) {
-        Toast.fail('Необходимо указать марку транспортного средства');
+      if (!selectedVehicleBrand) {
+        showValidationError('requiredField');
         return;
       }
 
       if (!payload.vehicle_number || payload.vehicle_number.length < 2) {
-        Toast.fail('Гос. номер должен содержать минимум 2 символа');
+        showValidationError('requiredField');
         return;
       }
 
       if (payload.vehicle_number.length > 20) {
-        Toast.fail('Гос. номер не может быть длиннее 20 символов');
+        showValidationError('requiredField');
         return;
       }
 
       if (!payload.departure_time) {
-        Toast.fail('Необходимо указать время отправления');
+        showValidationError('requiredField');
         return;
       }
 
       if (!payload.estimated_arrival_time) {
-        Toast.fail('Необходимо указать предполагаемое время прибытия');
+        showValidationError('requiredField');
         return;
       }
 
       // Проверяем, что время прибытия в будущем
-      const arrivalTime = moment(payload.estimated_arrival_time);
-      if (arrivalTime.isBefore(moment())) {
-        Toast.fail('Предполагаемое время прибытия должно быть в будущем');
-        return;
-      }
+      // const arrivalTime = moment(payload.estimated_arrival_time);
+      // if (arrivalTime.isBefore(moment())) {
+      //   Toast.fail('Предполагаемое время прибытия должно быть в будущем');
+      //   return;
+      // }
 
       try {
         const qrRequest = {
           id,
           counterparty_bin: user?.counterparty?.bin || '',
-          contract_id: String(values?.contract) || '',
+          contract_id: selectedContract || '',
           driver_info: values?.driverName || '',
-          vehicle_brand_id: String(values?.vehicle) || '',
+          vehicle_brand_id: selectedVehicleBrand || '',
           vehicle_number: values?.vehicle_number || '',
+          user_id: user?.id.toString() || '',
         };
 
         setQrData(JSON.stringify(qrRequest));
@@ -192,7 +257,7 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
 
         if (isOnline === true) {
           await shipmentsApi.createShipment(payload);
-          Toast.success('Рейс создан успешно!');
+          showShipmentCreated();
         } else {
           await addOfflineShipment(payload);
           try {
@@ -201,9 +266,7 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
             console.error('Ошибка добавления в кэш:', cacheError);
           }
           setOfflineCount(prev => prev + 1);
-          Toast.info(
-            'Рейс сохранен оффлайн. Будет отправлен при появлении интернета.',
-          );
+          showBilingualToast('offlineDataAvailable', 'info');
         }
 
         form.resetFields();
@@ -227,24 +290,52 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
             // Продолжаем работу даже если кэш не обновился
           }
           setOfflineCount(prev => prev + 1);
-          Toast.info(
-            'Рейс сохранен оффлайн. Будет отправлен при появлении интернета.',
-          );
+          showBilingualToast('offlineDataAvailable', 'info');
           form.resetFields();
         }
       }
     } catch (validationError) {
       console.error('Form validation error:', validationError);
-      Toast.fail('Проверьте правильность заполнения формы');
+      showValidationError('requiredField');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleConfirm = () => {
+    Alert.alert(
+      'Подтверждение данных',
+      'Вы уверены, что хотите создать рейс?',
+      [
+        {
+          text: 'Отмена',
+          style: 'cancel',
+        },
+        {
+          text: 'Подтвердить',
+          onPress: () => {
+            setShowConfirmationModal(false);
+            handleSave();
+          },
+        },
+      ],
+    );
+  };
+
+  const handleCancelConfirmation = () => {
+    setShowConfirmationModal(false);
+    setConfirmationData(null);
   };
 
   const handleReset = () => {
     form.resetFields();
     setQrData('');
     setShowQRSheet(false);
+    setShowConfirmationModal(false);
+    setConfirmationData(null);
+    setSelectedVehicleBrand('');
+    setSelectedContract('');
+    setSelectedArrivalTime('');
   };
 
   const calculateNetWeight = (grossWeight: string, tareWeight: string) => {
@@ -276,14 +367,10 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
                   },
                 ]}
               >
-                <InputItem
-                  clear
+                <Input
                   placeholder="Введите имя водителя"
                   placeholderTextColor={COLORS.placeholder}
-                  styles={{ 
-                    input: styles.input,
-                    container: antdStyles.inputItem 
-                  }}
+                  style={styles.input}
                 />
               </Form.Item>
             </View>
@@ -292,7 +379,10 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
               <Form.Item
                 name="vehicle"
                 rules={[
-                  { required: true, message: 'Выберите марку автомобиля' },
+                  {
+                    required: selectedVehicleBrand ? false : true,
+                    message: 'Выберите марку автомобиля',
+                  },
                 ]}
               >
                 {vehicleBrandsLoading ? (
@@ -300,23 +390,36 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
                     <ActivityIndicator size="small" color={COLORS.primary} />
                   </View>
                 ) : vehicleBrands.length > 0 ? (
-                  <Picker
-                    data={
-                      vehicleBrands.length > 0
-                        ? vehicleBrands.map(brand => ({
-                            label: brand.name,
-                            value: brand.id,
-                          }))
-                        : [{ label: 'Нет данных', value: '' }]
-                    }
-                    cols={1}
-                    disabled={vehicleBrands.length === 0}
-                  >
-                    <List.Item
-                      arrow="horizontal"
-                      styles={{ Item: styles.listItem }}
-                    />
-                  </Picker>
+                  <View style={styles.pickerContainer}>
+                    <Picker
+                      data={vehicleBrands.map(brand => ({
+                        label: brand.name,
+                        value: brand.id.toString(),
+                      }))}
+                      cols={1}
+                      value={[selectedVehicleBrand]}
+                      onChange={values =>
+                        setSelectedVehicleBrand(String(values[0]))
+                      }
+                      styles={{
+                        container: {
+                          backgroundColor: 'red',
+                        },
+                      }}
+                    >
+                      <List.Item
+                        align="middle"
+                        // arrow="horizontal"
+                        underlayColor="transparent"
+                        styles={{ Item: styles.listItem }}
+                      />
+                    </Picker>
+                    {!selectedVehicleBrand || selectedVehicleBrand === '' ? (
+                      <Text style={styles.placeholderText}>
+                        Выберите марку автомобиля
+                      </Text>
+                    ) : null}
+                  </View>
                 ) : (
                   <View style={styles.noDataContainer}>
                     <Text style={styles.noDataText}>
@@ -343,14 +446,10 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
                   },
                 ]}
               >
-                <InputItem
-                  clear
+                <Input
                   placeholder="Введите номер автомобиля"
                   placeholderTextColor={COLORS.placeholder}
-                  styles={{ 
-                    input: styles.input,
-                    container: antdStyles.inputItem 
-                  }}
+                  style={styles.input}
                 />
               </Form.Item>
             </View>
@@ -359,30 +458,47 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
               <Text style={styles.fieldLabel}>Контракт *</Text>
               <Form.Item
                 name="contract"
-                rules={[{ required: true, message: 'Выберите контракт' }]}
+                rules={[
+                  {
+                    required: selectedContract ? false : true,
+                    message: 'Выберите контракт',
+                  },
+                ]}
               >
                 {contractsLoading ? (
                   <View style={styles.fieldLoadingContainer}>
                     <ActivityIndicator size="small" color={COLORS.primary} />
                   </View>
                 ) : contracts.length > 0 ? (
-                  <Picker
-                    data={
-                      contracts.length > 0
-                        ? contracts.map(contract => ({
-                            label: contract.number,
-                            value: contract.id,
-                          }))
-                        : [{ label: 'Нет данных', value: '' }]
-                    }
-                    cols={1}
-                    loading={loading}
-                  >
-                    <List.Item
-                      arrow="horizontal"
-                      styles={{ Item: styles.listItem }}
-                    />
-                  </Picker>
+                  <View style={styles.pickerContainer}>
+                    <Picker
+                      data={contracts.map(contract => ({
+                        label: contract.number,
+                        value: contract.id.toString(),
+                      }))}
+                      cols={1}
+                      value={[selectedContract]}
+                      onChange={values =>
+                        setSelectedContract(String(values[0]))
+                      }
+                      styles={{
+                        container: {
+                          borderBottomWidth: 0,
+                          borderBottomColor: 'transparent',
+                        },
+                      }}
+                    >
+                      <List.Item
+                        // arrow="horizontal"
+                        styles={{ Item: styles.listItem }}
+                      />
+                    </Picker>
+                    {!selectedContract ? (
+                      <Text style={styles.placeholderText}>
+                        Выберите контракт
+                      </Text>
+                    ) : null}
+                  </View>
                 ) : (
                   <View style={styles.noDataContainer}>
                     <Text style={styles.noDataText}>
@@ -394,21 +510,43 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
             </View>
 
             <View style={styles.fieldContainer}>
-              <Text style={styles.fieldLabel}>Время прибытия *</Text>
+              <Text style={styles.fieldLabel}>Срок доставки *</Text>
               <Form.Item
                 name="arrival"
-                rules={[{ required: true, message: 'Выберите время прибытия' }]}
+                rules={[
+                  {
+                    required: true,
+                    message: 'Выберите срок доставки',
+                  },
+                ]}
               >
-                <DatePicker
-                  precision="minute"
-                  onChange={date => form.setFieldsValue({ arrival: date })}
-                  format="DD.MM.YYYY HH:mm"
-                >
-                  <List.Item
-                    arrow="horizontal"
-                    styles={{ Item: styles.listItem }}
-                  />
-                </DatePicker>
+                <View style={styles.pickerContainer}>
+                  <Picker
+                    data={timePicker}
+                    onChange={values => {
+                      const newValue = String(values[0]);
+                      setSelectedArrivalTime(newValue);
+                      form.setFieldsValue({ arrival: newValue });
+                    }}
+                    styles={{
+                      container: {
+                        borderBottomWidth: 0,
+                        borderBottomColor: 'transparent',
+                      },
+                    }}
+                  >
+                    <List.Item
+                      // arrow="horizontal"
+                      styles={{ Item: styles.listItem }}
+                      multipleLine
+                    />
+                  </Picker>
+                  {!form.getFieldValue('arrival') ? (
+                    <Text style={styles.placeholderText}>
+                      Выберите срок доставки
+                    </Text>
+                  ) : null}
+                </View>
               </Form.Item>
             </View>
           </List>
@@ -419,7 +557,7 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
         <View style={styles.buttonWrapper}>
           <Button
             type="primary"
-            onPress={handleSave}
+            onPress={prepareConfirmationData}
             loading={loading}
             style={styles.button}
           >
@@ -439,6 +577,19 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
         onClose={() => setShowQRSheet(false)}
         qrData={qrData}
       />
+
+      {confirmationData && (
+        <ShipmentConfirmationModal
+          isVisible={showConfirmationModal}
+          onClose={handleCancelConfirmation}
+          onConfirm={handleConfirm}
+          data={confirmationData}
+          vehicleBrands={vehicleBrands.map(brand => ({
+            label: brand.name,
+            value: brand.id.toString(),
+          }))}
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -459,15 +610,20 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     overflow: 'hidden',
     paddingTop: 20,
-    // Убираем бордеры у List компонента
+    paddingBottom: 8,
     borderBottomWidth: 0,
+    borderBottomColor: 'transparent',
   },
   input: {
     marginBottom: 0,
-    paddingLeft: 0,
-    // Убираем бордеры у InputItem
     borderBottomWidth: 0,
     borderBottomColor: 'transparent',
+    borderWidth: 0,
+    borderColor: 'transparent',
+    backgroundColor: '#f3f3f3',
+    padding: 8,
+    borderRadius: 8,
+    paddingLeft: 16,
   },
   buttonWrapper: {
     marginBottom: 16,
@@ -535,15 +691,17 @@ const styles = StyleSheet.create({
   },
   fieldContainer: {
     marginBottom: 0,
-    paddingTop: 8
+    paddingTop: 8,
   },
   listItem: {
     paddingVertical: 0,
     textAlign: 'left',
     width: '100%',
-    // Убираем бордеры у List.Item
-    borderBottomWidth: 0,
     borderBottomColor: 'transparent',
+    color: 'red',
+    backgroundColor: '#f3f3f3',
+    borderRadius: 8,
+    paddingLeft: 16,
   },
   fieldLabel: {
     fontSize: 16,
@@ -551,6 +709,22 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
     marginBottom: 8,
     paddingHorizontal: 16,
+    borderWidth: 0,
+    borderColor: 'transparent',
+    borderBottomWidth: 0,
+    borderBottomColor: 'transparent',
+  },
+  pickerContainer: {
+    position: 'relative',
+  },
+  placeholderText: {
+    position: 'absolute',
+    top: 12,
+    left: 16,
+    fontSize: 16,
+    color: COLORS.placeholder,
+    zIndex: 1,
+    pointerEvents: 'none',
   },
 });
 

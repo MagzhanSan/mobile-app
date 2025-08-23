@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Text } from './CustomText';
-import { Icon } from '@ant-design/react-native';
+import { Icon, Input } from '@ant-design/react-native';
 import { COLORS } from '../consts/colors';
 import QRCode from 'react-native-qrcode-svg';
 import { useAuth } from '../contexts/auth-context';

@@ -16,6 +16,13 @@ import { COLORS } from '../consts/colors';
 import { shipmentsApi } from '../api/shipments-api';
 import { useAuth } from '../contexts/auth-context';
 import { Counterparty } from '../types/types';
+import {
+  showBilingualAlert,
+  showBilingualToast,
+  showValidationError,
+  showUpdateSuccess,
+  showServerError,
+} from '../utils/notifications';
 
 interface ShipmentApprovalBottomSheetProps {
   isVisible: boolean;
@@ -31,7 +38,6 @@ const ShipmentApprovalBottomSheet: React.FC<
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
-  // Состояния для разных ролей
   const [isConditioned, setIsConditioned] = useState(true);
   const [needLabTesting, setNeedLabTesting] = useState(true);
   const [generalContamination, setGeneralContamination] = useState('');
@@ -96,20 +102,22 @@ const ShipmentApprovalBottomSheet: React.FC<
   // Определяем роль пользователя
   const userRole = user?.role?.value;
 
-  const handleAccept = async (status?: 'accepted' | 'declined') => {
+  const handleAccept = async (
+    status?: 'accepted' | 'declined' | 'left' | 'arrived',
+  ) => {
     if (!shipmentId) {
-      Alert.alert('Ошибка', 'ID shipment не найден');
+      showBilingualAlert('error', 'unknownError');
       return;
     }
 
     // Валидация для лаборанта
     if (userRole === 'lab_assistant') {
       if (generalContamination && !validatePercentage(generalContamination)) {
-        Alert.alert('Ошибка', 'Общая загрязненность должна быть от 0 до 100%');
+        showValidationError('requiredField');
         return;
       }
       if (sugarContent && !validatePercentage(sugarContent)) {
-        Alert.alert('Ошибка', 'Содержание сахара должно быть от 0 до 100%');
+        showValidationError('requiredField');
         return;
       }
     }
@@ -117,11 +125,11 @@ const ShipmentApprovalBottomSheet: React.FC<
     // Валидация для оператора кагата
     if (userRole === 'pile_operator') {
       if (!needPileNumber && (!pileNumber || pileNumber.trim() === '')) {
-        Alert.alert('Ошибка', 'Введите номер кагата');
+        showValidationError('requiredField');
         return;
       }
       if (!needPileNumber && parseInt(pileNumber) <= 0) {
-        Alert.alert('Ошибка', 'Номер кагата должен быть положительным числом');
+        showValidationError('requiredField');
         return;
       }
     }
@@ -129,11 +137,11 @@ const ShipmentApprovalBottomSheet: React.FC<
     // Валидация для оператора бума
     if (userRole === 'boom_operator') {
       if (!boomNumber || boomNumber.trim() === '') {
-        Alert.alert('Ошибка', 'Введите номер бума');
+        showValidationError('requiredField');
         return;
       }
       if (parseInt(boomNumber) <= 0) {
-        Alert.alert('Ошибка', 'Номер бума должен быть положительным числом');
+        showValidationError('requiredField');
         return;
       }
     }
@@ -144,21 +152,17 @@ const ShipmentApprovalBottomSheet: React.FC<
 
       switch (userRole) {
         case 'receiver':
-          const qrParsedData = JSON.parse(qrData);
-
           updateData = {
             is_conditioned: isConditioned,
             need_lab_testing: needLabTesting,
             status,
-            ...qrParsedData,
+            ...JSON.parse(qrData),
           };
 
           // Добавляем причину отклонения если статус declined
           if (status === 'declined' && rejectionReason.trim()) {
             updateData.details = rejectionReason.trim();
           }
-
-          setData(updateData);
 
           await shipmentsApi.createShipment(updateData);
           break;
@@ -188,30 +192,26 @@ const ShipmentApprovalBottomSheet: React.FC<
           await shipmentsApi.updateShipment(shipmentId, updateData);
           break;
 
+        case 'security':
+          updateData = {
+            status,
+            details: rejectionReason,
+            ...JSON.parse(qrData),
+          };
+          await shipmentsApi.createShipment(updateData);
+          break;
+
         default:
-          Alert.alert('Ошибка', 'Неизвестная роль пользователя');
+          showBilingualAlert('error', 'unknownError');
           return;
       }
 
-      Alert.alert('Успешно', 'Данные обновлены', [
-        {
-          text: 'OK',
-          onPress: () => {
-            onClose();
-            resetForm();
-          },
-        },
-      ]);
+      showUpdateSuccess();
+      onClose();
+      resetForm();
     } catch (error: any) {
       setData(error.response?.data || error.message);
-      console.error('Ошибка обновления shipment:', error);
-      Toast.show({
-        content: error.response?.data?.message || 'Произошла ошибка',
-        type: 'fail',
-        duration: 3,
-        mask: false,
-        position: 'center',
-      });
+      showServerError();
     } finally {
       setIsLoading(false);
     }
@@ -223,15 +223,35 @@ const ShipmentApprovalBottomSheet: React.FC<
   };
 
   const handleRejectConfirm = () => {
-    if (!rejectionReason.trim()) {
-      Alert.alert('Ошибка', 'Пожалуйста, укажите причину отклонения');
+    const isSecurity = userRole === 'security';
+
+    if (!isSecurity && !rejectionReason.trim()) {
+      showValidationError('requiredField');
       return;
     }
 
-    handleAccept('declined');
-    setShowRejectionModal(false);
-    onClose();
-    resetForm();
+    if (isSecurity) {
+      showBilingualAlert('confirm', 'save', [
+        {
+          text: 'Отмена',
+          style: 'cancel',
+        },
+        {
+          text: 'Сохранить',
+          style: 'default',
+          onPress: () => {
+            handleAccept('left');
+            onClose();
+            resetForm();
+          },
+        },
+      ]);
+    } else {
+      handleAccept(isSecurity ? 'left' : 'declined');
+      setShowRejectionModal(false);
+      onClose();
+      resetForm();
+    }
   };
 
   const handleRejectCancel = () => {
@@ -242,27 +262,23 @@ const ShipmentApprovalBottomSheet: React.FC<
   const handleAcceptHandler = () => {
     Keyboard.dismiss();
     const isReseiver = userRole === 'receiver';
-    Alert.alert(
-      `${isReseiver ? 'Принять' : 'Сохранить'}`,
-      `Вы уверены, что хотите ${
-        isReseiver ? 'принять' : 'сохранить'
-      } этот рейс?`,
-      [
-        {
-          text: 'Отмена',
-          style: 'cancel',
+    const isSecurity = userRole === 'security';
+
+    showBilingualAlert('confirm', 'save', [
+      {
+        text: 'Отмена',
+        style: 'cancel',
+      },
+      {
+        text: isReseiver ? 'Принять' : 'Сохранить',
+        style: 'default',
+        onPress: () => {
+          handleAccept(isSecurity ? 'arrived' : 'accepted');
+          onClose();
+          resetForm();
         },
-        {
-          text: isReseiver ? 'Принять' : 'Сохранить',
-          style: 'default',
-          onPress: () => {
-            handleAccept('accepted');
-            onClose();
-            resetForm();
-          },
-        },
-      ],
-    );
+      },
+    ]);
   };
 
   const handleClose = () => {
@@ -283,10 +299,11 @@ const ShipmentApprovalBottomSheet: React.FC<
 
   const getNumber = (data: string) => {
     try {
-      const parsedData = JSON.parse(data);
-      return parsedData?.vehicle_number || '';
+      const qrParsedData = JSON.parse(data);
+
+      return qrParsedData?.vehicle_number || '';
     } catch (error) {
-      console.error('Ошибка парсинга JSON:', error);
+      // console.error('Ошибка парсинга JSON:', error);
       return '';
     }
   };
@@ -434,6 +451,25 @@ const ShipmentApprovalBottomSheet: React.FC<
           </View>
         );
 
+      case 'security':
+        return (
+          <View style={styles.formSection}>
+            <TextInput
+              style={[styles.textInput, styles.textArea]}
+              value={rejectionReason}
+              onChangeText={setRejectionReason}
+              placeholder="Укажите причину"
+              multiline={true}
+              numberOfLines={4}
+              placeholderTextColor={COLORS.placeholder}
+              textAlignVertical="top"
+              returnKeyType="done"
+              onSubmitEditing={() => Keyboard.dismiss()}
+              blurOnSubmit={true}
+            />
+          </View>
+        );
+
       default:
         return (
           <View style={styles.formSection}>
@@ -455,8 +491,10 @@ const ShipmentApprovalBottomSheet: React.FC<
         return 'Данные кагата';
       case 'boom_operator':
         return 'Данные Бума';
+      case 'security':
+        return 'Данные охраны';
       default:
-        return 'Одобрение Shipment';
+        return 'Одобрение рейса';
     }
   };
 
@@ -526,13 +564,19 @@ const ShipmentApprovalBottomSheet: React.FC<
               {renderForm()}
             </ScrollView>
             <View style={styles.actions}>
-              {userRole === 'receiver' && (
+              {(userRole === 'receiver' || userRole === 'security') && (
                 <TouchableOpacity
                   style={[styles.button, styles.rejectButton]}
-                  onPress={handleReject}
+                  onPress={() =>
+                    userRole === 'security'
+                      ? handleRejectConfirm()
+                      : handleReject()
+                  }
                   disabled={isLoading}
                 >
-                  <Text style={styles.rejectButtonText}>Отклонить</Text>
+                  <Text style={styles.rejectButtonText}>
+                    {userRole === 'security' ? 'Выехал' : 'Отклонить'}
+                  </Text>
                 </TouchableOpacity>
               )}
 
@@ -550,6 +594,8 @@ const ShipmentApprovalBottomSheet: React.FC<
                     ? 'Обработка...'
                     : userRole === 'receiver'
                     ? 'Принять'
+                    : userRole === 'security'
+                    ? 'Прибыл'
                     : 'Сохранить'}
                 </Text>
               </TouchableOpacity>

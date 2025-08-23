@@ -130,8 +130,14 @@ class HttpClient {
             this.isRefreshing = false;
           }
         }
+        const isForbidden = error.response?.status === 403;
 
-        Toast.fail(error.response?.data?.message || 'Произошла ошибка', 3);
+        Toast.fail(
+          error.response?.data?.message || isForbidden
+            ? 'Доступ запрещен'
+            : 'Произошла ошибка',
+          3,
+        );
 
         return Promise.reject(error);
       },
