@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1024" height="1024" fill="#4CAF50"/>
+  <g transform="translate(200, 200) scale(0.6)">
+    <!-- Упрощенный логотип свеклы -->
+    <circle cx="512" cy="512" r="400" fill="#8BC34A" stroke="#2E7D32" stroke-width="20"/>
+    <circle cx="512" cy="512" r="300" fill="#4CAF50"/>
+    <circle cx="512" cy="512" r="200" fill="#2E7D32"/>
+    <text x="512" y="580" font-family="Arial, sans-serif" font-size="120" font-weight="bold" text-anchor="middle" fill="white">S</text>
+  </g>
+</svg>

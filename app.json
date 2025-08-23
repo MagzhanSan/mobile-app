@@ -1,4 +1,6 @@
 {
   "name": "svekla",
-  "displayName": "svekla"
+  "displayName": "svekla aksukant",
+  "version": "1.0.0",
+  "description": "Система управления поставками свеклы для мобильных устройств"
 }

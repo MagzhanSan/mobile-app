@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+    
+    <!-- Основная форма логотипа (упрощенная версия) -->
+    <path
+        android:fillColor="#8c1c37"
+        android:pathData="M60,20 C40,20 25,35 25,55 C25,75 40,90 60,90 C80,90 95,75 95,55 C95,35 80,20 60,20 Z"/>
+    
+    <!-- Листья -->
+    <path
+        android:fillColor="#47b24c"
+        android:pathData="M60,15 C55,10 50,15 55,20 C60,25 65,20 60,15 Z"/>
+    
+    <path
+        android:fillColor="#47b24c"
+        android:pathData="M65,18 C60,13 55,18 60,23 C65,28 70,23 65,18 Z"/>
+    
+    <path
+        android:fillColor="#47b24c"
+        android:pathData="M55,18 C50,13 45,18 50,23 C55,28 60,23 55,18 Z"/>
+    
+    <!-- Буква "a" в центре -->
+    <path
+        android:fillColor="#ffffff"
+        android:pathData="M45,40 L75,40 L75,45 L65,45 L65,70 L60,70 L60,45 L50,45 L50,50 L55,50 L55,65 L60,65 L60,50 L70,50 L70,45 L45,45 Z"/>
+</vector>

@@ -1,4 +1,4 @@
-package com.svekla
+package com.aksukant.svekla
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate

@@ -1,97 +1,164 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# Svekla Aksukant
 
-# Getting Started
+Мобильное приложение для управления поставками.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+## 🎨 Новый дизайн
 
-## Step 1: Start Metro
+Приложение теперь имеет красивый брендинг с логотипом и названием "svekla aksukant":
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+- **Логотип**: Стилизованная буква "a" с листьями в фирменных цветах
+- **Цветовая схема**: Темно-красный (#8c1c37), красный (#aa2249), зеленый (#47b24c)
+- **Splash Screen**: Анимированный экран загрузки с логотипом
+- **Название**: "svekla aksukant"
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+## ✨ Особенности
 
-```sh
-# Using npm
-npm start
+### 🎯 Основной функционал
+- **QR-сканер**: Сканирование QR-кодов для обработки поставок
+- **Ролевая система**: Разные интерфейсы для разных ролей пользователей
+- **Офлайн режим**: Работа без интернета с синхронизацией
+- **Авторизация**: Безопасный вход с валидацией email
 
-# OR using Yarn
-yarn start
+### 🎨 UI/UX улучшения
+- **Анимированный Splash Screen**: Плавное появление логотипа
+- **Валидация email**: Строгая проверка через regex
+- **Адаптивный дизайн**: Поддержка разных размеров экранов
+- **Нативная интеграция**: Оптимизированная производительность
+
+### 🔐 Безопасность
+- **Token refresh**: Автоматическое обновление токенов
+- **Валидация данных**: Проверка введенных данных
+- **Безопасное хранение**: Шифрование чувствительной информации
+
+## 🚀 Установка и запуск
+
+### Требования
+- Node.js 18+
+- React Native CLI
+- Xcode (для iOS)
+- Android Studio (для Android)
+
+### Установка зависимостей
+```bash
+npm install
+cd ios && pod install
 ```
 
-## Step 2: Build and run your app
+### Запуск
+```bash
+# iOS
+npx react-native run-ios
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
-
-```sh
-# Using npm
-npm run android
-
-# OR using Yarn
-yarn android
+# Android
+npx react-native run-android
 ```
 
-### iOS
+## 📱 Роли пользователей
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
+### Принимающий (Receiver)
+- **Функция**: Прием поставок
+- **Поля**: `is_conditioned`, `need_lab_testing`
+- **API**: POST запрос с данными QR-кода
 
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
+### Лаборант (Lab Assistant)
+- **Функция**: Лабораторные анализы
+- **Поля**: `general_contamination`, `sugar_content`
+- **API**: PUT запрос для обновления
 
-```sh
-bundle install
+### Оператор кучи (Pile Operator)
+- **Функция**: Управление кучами
+- **Поля**: `pile_number`
+- **API**: PUT запрос для обновления
+
+### Оператор стрелы (Boom Operator)
+- **Функция**: Управление стрелой
+- **Поля**: `boom_number`
+- **API**: PUT запрос для обновления
+
+## 🎨 Дизайн-система
+
+### Цвета
+```css
+--primary: #8c1c37;      /* Темно-красный */
+--accent: #aa2249;       /* Красный */
+--green: #47b24c;        /* Зеленый */
+--background: #fafafa;   /* Светло-серый */
+--text: #333333;         /* Темно-серый */
+--text-secondary: #666666; /* Серый */
 ```
 
-Then, and every time you update your native dependencies, run:
+### Типографика
+- **Заголовки**: Bold, 32px
+- **Подзаголовки**: Regular, 16px
+- **Текст**: Regular, 14px
 
-```sh
-bundle exec pod install
+## 📁 Структура проекта
+
+```
+svekla/
+├── src/
+│   ├── components/
+│   │   ├── AppLogo.tsx              # Логотип приложения
+│   │   ├── SplashScreen.tsx         # Экран загрузки
+│   │   ├── QRCodeBottomSheet.tsx    # QR-сканер
+│   │   └── VisionCameraScanner.tsx  # Камера
+│   ├── screens/
+│   │   ├── auth-screen.tsx          # Авторизация
+│   │   ├── check-screen.tsx         # Сканирование
+│   │   └── shipments-list-screen.tsx # Список поставок
+│   ├── api/
+│   │   ├── http-client.ts           # HTTP клиент
+│   │   └── shipments-api.ts         # API поставок
+│   ├── contexts/
+│   │   └── auth-context.tsx         # Контекст авторизации
+│   ├── navigation/
+│   │   └── stack-navigation.tsx     # Навигация
+│   ├── utils/
+│   │   ├── network-utils.ts         # Утилиты сети
+│   │   └── navigationService.ts     # Сервис навигации
+│   └── assets/
+│       └── logoDark.svg             # Исходный логотип
+├── ios/
+│   └── svekla/
+│       ├── LaunchScreen.storyboard  # iOS Launch Screen
+│       └── Images.xcassets/         # Ресурсы iOS
+├── android/
+│   └── app/
+│       └── src/
+│           └── main/
+│               └── res/             # Ресурсы Android
+└── temp/
+    └── app-icon.svg                 # SVG для иконок
 ```
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+## 🔧 Настройка иконок
 
-```sh
-# Using npm
-npm run ios
+Подробные инструкции по настройке иконок приложения находятся в файле [ICON_SETUP.md](./ICON_SETUP.md).
 
-# OR using Yarn
-yarn ios
-```
+## 📋 Чек-лист готовности
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+- [x] Название приложения обновлено
+- [x] Логотип интегрирован
+- [x] Splash Screen создан
+- [x] Валидация email добавлена
+- [x] Анимации настроены
+- [x] iOS Launch Screen настроен
+- [x] Android Splash Screen настроен
+- [x] Цветовая схема применена
+- [ ] Иконки приложения сгенерированы
+- [ ] Тестирование на устройствах
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+## 🤝 Вклад в проект
 
-## Step 3: Modify your app
+1. Форкните репозиторий
+2. Создайте ветку для новой функции
+3. Внесите изменения
+4. Создайте Pull Request
 
-Now that you have successfully run the app, let's make changes!
+## 📄 Лицензия
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+MIT License
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+## 📞 Поддержка
 
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+По вопросам поддержки обращайтесь к команде разработки.

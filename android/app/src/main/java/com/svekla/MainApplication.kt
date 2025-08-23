@@ -1,4 +1,4 @@
-package com.svekla
+package com.aksukant.svekla
 
 import android.app.Application
 import com.facebook.react.PackageList
