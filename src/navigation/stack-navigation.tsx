@@ -31,23 +31,6 @@ export type RootStackParamList = {
 const Tab = createBottomTabNavigator<BottomTabParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-// Компонент кнопки выхода
-const LogoutButton = () => {
-  const { logout } = useAuth();
-
-  return (
-    <TouchableOpacity
-      onPress={logout}
-      style={{
-        marginRight: 15,
-        padding: 5,
-      }}
-    >
-      <LogoutIcon width={20} height={20} color={COLORS.textSecondary} />
-    </TouchableOpacity>
-  );
-};
-
 const HeaderLeft = () => {
   const handleReportBug = () => {
     const url =
@@ -163,7 +146,6 @@ const RootNavigator = () => {
                 options={{
                   headerShown: true,
                   title: 'Рейс',
-                  headerRight: () => <LogoutButton />,
                 }}
               />
             </>
@@ -175,7 +157,6 @@ const RootNavigator = () => {
                 options={{
                   headerShown: true,
                   title: 'Главная',
-                  headerRight: () => <LogoutButton />,
                   headerLeft: () => <HeaderLeft />,
                 }}
               />
@@ -185,7 +166,6 @@ const RootNavigator = () => {
                 options={{
                   headerShown: true,
                   title: 'Рейс',
-                  headerRight: () => <LogoutButton />,
                   headerLeft: () => <HeaderLeft />,
                 }}
               />
