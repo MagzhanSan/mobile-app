@@ -37,7 +37,7 @@ const SplashScreen: React.FC = () => {
         ]}
       >
         <AppLogo width={120} height={120} color="#8c1c37" />
-        <Text style={styles.title}>svekla aksukant</Text>
+        <Text style={styles.title}>AK Svekla</Text>
       </Animated.View>
     </View>
   );

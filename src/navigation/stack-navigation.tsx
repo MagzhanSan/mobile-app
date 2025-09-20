@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TouchableOpacity } from 'react-native';
+import { View, TouchableOpacity, Linking } from 'react-native';
 import { Text } from '../components/CustomText';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -48,28 +48,46 @@ const LogoutButton = () => {
   );
 };
 
-// Компонент заголовка с оффлайн индикатором
-const HeaderRight = () => {
+const HeaderLeft = () => {
+  const handleReportBug = () => {
+    const url =
+      'https://kfp-perfection-production.up.railway.app/?portal=ak-svekla';
+    Linking.openURL(url).catch(err =>
+      console.error('Не удалось открыть ссылку:', err),
+    );
+  };
+
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-      <OfflineIndicator />
-      <LogoutButton />
+      <TouchableOpacity
+        onPress={handleReportBug}
+        style={{
+          marginLeft: 15,
+          padding: 5,
+        }}
+      >
+        <Icon
+          name="question-circle"
+          color={COLORS.textSecondary}
+          style={{ fontSize: 24 }}
+        />
+      </TouchableOpacity>
     </View>
   );
 };
 
 const MainTabs = () => (
   <Tab.Navigator
-    initialRouteName="Shipments"
+    initialRouteName="Create"
     screenOptions={({ route }) => ({
       headerShown: true,
-      headerRight: () => <HeaderRight />,
       tabBarActiveTintColor: COLORS.primary,
       tabBarInactiveTintColor: COLORS.textSecondary,
       tabBarStyle: {
         backgroundColor: COLORS.card,
         borderTopColor: COLORS.border,
       },
+      headerLeft: () => <HeaderLeft />,
       tabBarIcon: ({ color, size }) => {
         let name = 'profile';
         if (route.name === 'Shipments') name = 'car';
@@ -158,6 +176,7 @@ const RootNavigator = () => {
                   headerShown: true,
                   title: 'Главная',
                   headerRight: () => <LogoutButton />,
+                  headerLeft: () => <HeaderLeft />,
                 }}
               />
               <Stack.Screen
@@ -167,6 +186,7 @@ const RootNavigator = () => {
                   headerShown: true,
                   title: 'Рейс',
                   headerRight: () => <LogoutButton />,
+                  headerLeft: () => <HeaderLeft />,
                 }}
               />
             </>

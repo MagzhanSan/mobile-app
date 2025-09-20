@@ -205,7 +205,8 @@ export type ShipmentRequest = {
   counterparty_bin: string;
   contract_id: string;
   driver_info: string;
-  vehicle_brand_id: string;
+  vehicle_brand_id: string | null;
+  vehicle_brand: string;
   vehicle_number: string;
   gross_weight?: number;
   tare_weight?: number;

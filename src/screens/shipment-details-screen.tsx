@@ -25,7 +25,6 @@ import { shipmentsApi } from '../api/shipments-api';
 import QRCodeBottomSheet from '../components/QRCodeBottomSheet';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { offlineSyncService } from '../services/offline-sync';
-import { showServerError } from '../utils/notifications';
 import { Text } from '../components/CustomText';
 
 const STATUS_COLOR: Record<string, string> = {
@@ -60,15 +59,13 @@ const ShipmentDetailsScreen = ({ navigation, route }: Props) => {
   const [basicDataOnly, setBasicDataOnly] = useState(false);
   const [showOfflineIndicator, setShowOfflineIndicator] = useState(false);
 
-  // Используем хук для динамического отслеживания интернета
   const { isOffline, isLoading: isNetworkLoading } = useNetworkStatus();
 
-  // Показываем индикатор офлайн режима только после определенного времени
   useEffect(() => {
     if (!isNetworkLoading && isOffline) {
       const timer = setTimeout(() => {
         setShowOfflineIndicator(true);
-      }, 500); // Показываем через 500мс после определения офлайн режима
+      }, 500);
 
       return () => clearTimeout(timer);
     } else {
@@ -83,9 +80,7 @@ const ShipmentDetailsScreen = ({ navigation, route }: Props) => {
       const shipmentData = await shipmentsApi.getShipment(id);
       setShipment(shipmentData);
 
-      // Если офлайн и есть только базовые данные, показываем их
       if (isOffline && shipmentData) {
-        // Проверяем, есть ли детальные данные (например, consignments)
         const hasDetailedData =
           shipmentData.consignments &&
           shipmentData.consignments !== '-' &&
@@ -94,26 +89,21 @@ const ShipmentDetailsScreen = ({ navigation, route }: Props) => {
         setBasicDataOnly(!hasDetailedData);
       }
     } catch (error) {
-      console.error('Ошибка загрузки данных рейса:', error);
-      showServerError();
     } finally {
       setLoading(false);
     }
   };
 
-  // Загружаем данные при первом рендере
   useEffect(() => {
     loadShipmentData();
   }, []);
 
-  // Обновляем данные при каждом фокусе на экране
   useFocusEffect(
     useCallback(() => {
       loadShipmentData();
     }, []),
   );
 
-  // Подписываемся на завершение синхронизации для обновления данных
   useEffect(() => {
     const handleSyncComplete = () => {
       loadShipmentData();
@@ -153,7 +143,6 @@ const ShipmentDetailsScreen = ({ navigation, route }: Props) => {
     );
   }
 
-  // Функция для получения цвета статуса
   const getStatusColor = (status: string) => {
     if (status === 'offline') {
       return '#FAAD14';
@@ -161,15 +150,14 @@ const ShipmentDetailsScreen = ({ navigation, route }: Props) => {
     return STATUS_COLOR[status] || '#999';
   };
 
-  // Функция для генерации QR-кода
   const generateQRCode = () => {
     const qrRequest = {
       id,
       counterparty_bin: shipment.counterparty?.bin || '',
-      contract_id: String(shipment.contract?.id) || '',
-      driver_info: shipment.driver_info || '',
-      vehicle_brand_id: String(shipment.vehicle_brand?.id) || '',
       vehicle_number: shipment.vehicle_number || '',
+      vehicle_brand: shipment.vehicle_brand?.name || '',
+      driver_info: shipment.driver_info || '',
+      contract_number: shipment.contract?.number || '',
       user_id: shipment.user?.id || '',
     };
 
@@ -177,97 +165,82 @@ const ShipmentDetailsScreen = ({ navigation, route }: Props) => {
     setShowQRSheet(true);
   };
 
-  // Функция для отображения прицепов
   const renderConsignments = () => {
-    if (
-      !shipment?.consignments ||
-      shipment.consignments === '-' ||
-      shipment.consignments.length === 0
-    ) {
-      return <View />;
-    }
-
     return (
       <Card style={{ ...styles.card, paddingBottom: 18 }}>
         <Text style={styles.sectionTitle}>Прицепы</Text>
-
-        {shipment.consignments.map(
-          (consignment: Consignment, index: number) => (
-            <View key={index} style={styles.consignmentCard}>
-              <Text style={styles.consignmentTitle}>Прицеп {index + 1}</Text>
-              <View style={styles.weightRow}>
-                <View style={styles.weightItem}>
-                  <Text style={styles.weightLabel}>Брутто</Text>
-                  <Text style={[styles.weightValue, { color: '#1890ff' }]}>
-                    {consignment.gross_weight || '—'} т
-                  </Text>
+        {shipment.consignments &&
+        Array.isArray(shipment.consignments) &&
+        shipment.consignments.length > 0 ? (
+          shipment.consignments.map(
+            (consignment: Consignment, index: number) => (
+              <View key={index} style={styles.consignmentCard}>
+                <Text style={styles.consignmentTitle}>Прицеп {index + 1}</Text>
+                <View style={styles.weightRow}>
+                  <View style={styles.weightItem}>
+                    <Text style={styles.weightLabel}>Брутто</Text>
+                    <Text style={[styles.weightValue, { color: '#1890ff' }]}>
+                      {consignment.gross_weight || '—'} т
+                    </Text>
+                  </View>
+                  <View style={styles.weightItem}>
+                    <Text style={styles.weightLabel}>Тара</Text>
+                    <Text style={[styles.weightValue, { color: '#52c41a' }]}>
+                      {consignment.tare_weight || '—'} т
+                    </Text>
+                  </View>
+                  <View style={styles.weightItem}>
+                    <Text style={styles.weightLabel}>Нетто</Text>
+                    <Text style={[styles.weightValue, { color: '#fa8c16' }]}>
+                      {consignment.net_weight || '—'} т
+                    </Text>
+                  </View>
                 </View>
-                <View style={styles.weightItem}>
-                  <Text style={styles.weightLabel}>Тара</Text>
-                  <Text style={[styles.weightValue, { color: '#52c41a' }]}>
-                    {consignment.tare_weight || '—'} т
+                {consignment.notes ? (
+                  <Text style={styles.notes}>
+                    Примечания: {consignment.notes}
                   </Text>
-                </View>
-                <View style={styles.weightItem}>
-                  <Text style={styles.weightLabel}>Нетто</Text>
-                  <Text style={[styles.weightValue, { color: '#fa8c16' }]}>
-                    {consignment.net_weight || '—'} т
-                  </Text>
-                </View>
+                ) : (
+                  <View />
+                )}
               </View>
-              {consignment.notes ? (
-                <Text style={styles.notes}>
-                  Примечания: {consignment.notes}
-                </Text>
-              ) : (
-                <View />
-              )}
-            </View>
-          ),
-        )}
-
-        {/* Общие веса */}
-        {shipment.gross_weight ||
-        shipment.tare_weight ||
-        shipment.net_weight ? (
-          <View style={styles.totalWeights}>
-            <Text style={styles.totalTitle}>Общие веса:</Text>
-            <View style={styles.weightRow}>
-              {shipment.gross_weight ? (
-                <View style={styles.weightItem}>
-                  <Text style={styles.weightLabel}>Брутто</Text>
-                  <Text style={[styles.weightValue, { color: '#1890ff' }]}>
-                    {shipment.gross_weight} т
-                  </Text>
-                </View>
-              ) : (
-                <View />
-              )}
-              {shipment.tare_weight ? (
-                <View style={styles.weightItem}>
-                  <Text style={styles.weightLabel}>Тара</Text>
-                  <Text style={[styles.weightValue, { color: '#52c41a' }]}>
-                    {shipment.tare_weight} т
-                  </Text>
-                </View>
-              ) : (
-                <View />
-              )}
-              {shipment.net_weight ? (
-                <View style={styles.weightItem}>
-                  <Text style={styles.weightLabel}>Нетто</Text>
-                  <Text style={[styles.weightValue, { color: '#fa8c16' }]}>
-                    {shipment.net_weight} т
-                  </Text>
-                </View>
-              ) : (
-                <View />
-              )}
-            </View>
-          </View>
+            ),
+          )
         ) : (
           <View />
         )}
+
+        <View style={styles.totalWeights}>
+          <Text style={styles.totalTitle}>Общие веса:</Text>
+          <View style={styles.weightRow}>
+            <View style={styles.weightItem}>
+              <Text style={styles.weightLabel}>Брутто</Text>
+              <Text style={[styles.weightValue, { color: '#1890ff' }]}>
+                {shipment.gross_weight
+                  ? shipment.gross_weight + ' т'
+                  : 'Не указано'}
+              </Text>
+            </View>
+
+            <View style={styles.weightItem}>
+              <Text style={styles.weightLabel}>Тара</Text>
+              <Text style={[styles.weightValue, { color: '#52c41a' }]}>
+                {shipment.tare_weight
+                  ? shipment.tare_weight + ' т'
+                  : 'Не указано'}
+              </Text>
+            </View>
+
+            <View style={styles.weightItem}>
+              <Text style={styles.weightLabel}>Нетто</Text>
+              <Text style={[styles.weightValue, { color: '#fa8c16' }]}>
+                {shipment.net_weight
+                  ? shipment.net_weight + ' т'
+                  : 'Не указано'}
+              </Text>
+            </View>
+          </View>
+        </View>
       </Card>
     );
   };
@@ -514,7 +487,7 @@ const ShipmentDetailsScreen = ({ navigation, route }: Props) => {
           )}
 
           {/* Прицепы - показываем только если есть детальные данные */}
-          {!basicDataOnly ? renderConsignments() : <View />}
+          {renderConsignments()}
 
           {/* Отступ для стики кнопки */}
           <View style={styles.bottomSpacer} />

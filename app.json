@@ -1,6 +1,11 @@
 {
   "name": "svekla",
-  "displayName": "svekla aksukant",
-  "version": "1.0.0",
-  "description": "Система управления поставками свеклы для мобильных устройств"
+  "displayName": "AK Svekla",
+  "version": "1.0.8",
+  "description": "Система управления поставками свеклы для мобильных устройств",
+  "extra": {
+    "eas": {
+      "projectId": "3247558d-5c88-452f-82d6-5f3432fe8d53"
+    }
+  }
 }

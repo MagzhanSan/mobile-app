@@ -15,7 +15,7 @@ import {
 } from '../utils/offline-storage';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { Toast } from '@ant-design/react-native';
-import { showServerError } from '../utils/notifications';
+import { Alert } from 'react-native';
 
 interface AuthContextType {
   user: User | null;
@@ -59,7 +59,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       setUser(response.data.user);
     } catch (error) {
-      showServerError();
+      Alert.alert(
+        'Ошибка входа - Кіру сәтсіз',
+        (error as any)?.message.includes('401') ? 'Неверный email или пароль\nҚате email немесе құпиясөз' : 'Произошла ошибка\nҚате орын алды'
+      );
       throw error;
     } finally {
       setIsLoading(false);

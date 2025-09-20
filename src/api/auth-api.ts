@@ -2,6 +2,7 @@ import { httpClient } from './http-client';
 import { LoginResponse, User } from '../types/types';
 import axios from 'axios';
 import { getApiUrl } from '../config/api-config';
+import { Alert } from 'react-native';
 
 export interface LoginRequest {
   email: string;

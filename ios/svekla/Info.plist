@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>svekla aksukant</string>
+	<string>AK Svekla</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -34,11 +34,13 @@
 	<key>NSCameraUsageDescription</key>
 	<string>Приложению требуется доступ к камере для сканирования QR кодов</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string/>
+	<string>Приложению требуется доступ к геолокации для определения местоположения при создании рейсов</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Приложению требуется доступ к микрофону для записи видео</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Приложению требуется доступ к галерее для сохранения QR кодов</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Приложению требуется доступ к галерее для выбора и сохранения изображений QR кодов</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UIAppFonts</key>

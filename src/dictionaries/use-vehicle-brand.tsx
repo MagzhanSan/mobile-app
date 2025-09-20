@@ -18,10 +18,24 @@ export const useVehicleBrand = () => {
           const brands = await vehicleBrandApi.getVehicleBrands();
           setVehicleBrands(brands);
           await saveVehicleBrands(brands);
-        } else {
-          // Если нет интернета или статус не определен - загружаем из локального хранилища
+        } else if (isOnline === false) {
+          // Если точно нет интернета - загружаем из локального хранилища
           const offlineBrands = await getVehicleBrands();
           setVehicleBrands(offlineBrands);
+        } else {
+          // Если статус не определен (null) - сначала пытаемся с сервера, потом из локального хранилища
+          try {
+            const brands = await vehicleBrandApi.getVehicleBrands();
+            setVehicleBrands(brands);
+            await saveVehicleBrands(brands);
+          } catch (networkError) {
+            console.log(
+              'Network error, loading from offline storage:',
+              networkError,
+            );
+            const offlineBrands = await getVehicleBrands();
+            setVehicleBrands(offlineBrands);
+          }
         }
       } catch (error) {
         console.error('Error loading vehicle brands:', error);

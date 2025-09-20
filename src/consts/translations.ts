@@ -62,10 +62,7 @@ export const TRANSLATIONS = {
     ru: 'Ошибка сети',
     kk: 'Желі қатесі',
   },
-  serverError: {
-    ru: 'Ошибка сервера',
-    kk: 'Сервер қатесі',
-  },
+
   unknownError: {
     ru: 'Неизвестная ошибка',
     kk: 'Белгісіз қате',

@@ -121,9 +121,6 @@ export const showNetworkError = () => {
 };
 
 // Функция для показа ошибки сервера
-export const showServerError = () => {
-  showBilingualToast('serverError', 'error');
-};
 
 // Функция для показа успешного сохранения
 export const showSaveSuccess = () => {

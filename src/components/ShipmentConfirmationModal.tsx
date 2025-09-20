@@ -36,12 +36,7 @@ const ShipmentConfirmationModal: React.FC<ShipmentConfirmationModalProps> = ({
   onClose,
   onConfirm,
   data,
-  vehicleBrands,
 }) => {
-  const findVehicleBrand = vehicleBrands.find(
-    brand => brand.value === data.vehicleBrand,
-  );
-
   return (
     <Modal
       visible={isVisible}
@@ -71,7 +66,7 @@ const ShipmentConfirmationModal: React.FC<ShipmentConfirmationModalProps> = ({
                 <View style={styles.fieldRow}>
                   <Text style={styles.fieldLabel}>Марка автомобиля:</Text>
                   <Text style={styles.fieldValue}>
-                    {findVehicleBrand?.label || 'Не выбрано'}
+                    {data?.vehicleBrand || 'Не выбрано'}
                   </Text>
                 </View>
               </List.Item>

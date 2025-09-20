@@ -1,3 +1,9 @@
 <resources>
-    <string name="app_name">svekla aksukant</string>
+    <string name="app_name">AK Svekla</string>
+    
+    <!-- Описания разрешений -->
+    <string name="camera_permission">Приложению требуется доступ к камере для сканирования QR кодов</string>
+    <string name="location_permission">Приложению требуется доступ к геолокации для определения местоположения при создании рейсов</string>
+    <string name="storage_permission">Приложению требуется доступ к хранилищу для сохранения QR кодов</string>
+    <string name="microphone_permission">Приложению требуется доступ к микрофону для записи видео</string>
 </resources>

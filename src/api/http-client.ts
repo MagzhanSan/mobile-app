@@ -5,7 +5,6 @@ import Toast from '@ant-design/react-native/lib/toast';
 import { resetToAuth } from '../utils/navigationService';
 import { Alert } from 'react-native';
 
-// Расширяем тип AxiosRequestConfig для добавления флага _retry
 interface ExtendedAxiosRequestConfig extends AxiosRequestConfig {
   _retry?: boolean;
 }
@@ -132,12 +131,11 @@ class HttpClient {
         }
         const isForbidden = error.response?.status === 403;
 
-        Toast.fail(
-          error.response?.data?.message || isForbidden
-            ? 'Доступ запрещен'
-            : 'Произошла ошибка',
-          3,
-        );
+        if (error.response?.data?.message) {
+          Alert.alert(error.response?.data?.message);
+        } else {
+          Alert.alert(isForbidden ? 'Доступ запрещен' : 'Произошла ошибка');
+        }
 
         return Promise.reject(error);
       },

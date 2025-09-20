@@ -21,7 +21,6 @@ import {
   showBilingualToast,
   showValidationError,
   showUpdateSuccess,
-  showServerError,
 } from '../utils/notifications';
 
 interface ShipmentApprovalBottomSheetProps {
@@ -211,7 +210,6 @@ const ShipmentApprovalBottomSheet: React.FC<
       resetForm();
     } catch (error: any) {
       setData(error.response?.data || error.message);
-      showServerError();
     } finally {
       setIsLoading(false);
     }
@@ -458,7 +456,7 @@ const ShipmentApprovalBottomSheet: React.FC<
               style={[styles.textInput, styles.textArea]}
               value={rejectionReason}
               onChangeText={setRejectionReason}
-              placeholder="Укажите причину"
+              placeholder="Примечание (необязательно)"
               multiline={true}
               numberOfLines={4}
               placeholderTextColor={COLORS.placeholder}

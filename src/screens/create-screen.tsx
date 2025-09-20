@@ -25,6 +25,7 @@ import uuid from 'react-native-uuid';
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import QRCodeBottomSheet from '../components/QRCodeBottomSheet';
 import ShipmentConfirmationModal from '../components/ShipmentConfirmationModal';
+import VehicleBrandSelector from '../components/VehicleBrandSelector';
 import { ShipmentRequest } from '../types/types';
 
 import { COLORS } from '../consts/colors';
@@ -44,20 +45,11 @@ import {
   showValidationError,
   showShipmentCreated,
   showNetworkError,
-  showServerError,
 } from '../utils/notifications';
 
 const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
-  const {
-    vehicleBrands,
-    loading: vehicleBrandsLoading,
-    load: loadVehicleBrands,
-  } = useVehicleBrand();
-  const {
-    contracts,
-    loading: contractsLoading,
-    load: loadContracts,
-  } = useContracts();
+  const { vehicleBrands, loading: vehicleBrandsLoading } = useVehicleBrand();
+  const { contracts, loading: contractsLoading } = useContracts();
   const { user } = useAuth();
   const { isOnline } = useNetworkStatus();
   const isFocused = useIsFocused();
@@ -68,7 +60,11 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [offlineCount, setOfflineCount] = useState(0);
   const [selectedVehicleBrand, setSelectedVehicleBrand] = useState<string>('');
+  const [selectedVehicleBrandName, setSelectedVehicleBrandName] =
+    useState<string>('');
   const [selectedContract, setSelectedContract] = useState<string>('');
+  const [selectedContractNumber, setSelectedContractNumber] =
+    useState<string>('');
   const [selectedArrivalTime, setSelectedArrivalTime] = useState<string>('');
   const [confirmationData, setConfirmationData] = useState<any>(null);
 
@@ -99,10 +95,6 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
       setQrData('');
       setShowQRSheet(false);
 
-      // Загружаем свежие данные
-      loadVehicleBrands();
-      loadContracts();
-
       // Обновляем количество оффлайн рейсов
       const checkOfflineCount = async () => {
         const count = await offlineSyncService.getOfflineCount();
@@ -112,19 +104,13 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
     }
   }, [isFocused]);
 
-  // Дополнительный useFocusEffect для совместимости
-  useFocusEffect(
-    useCallback(() => {
-      if (isFocused) {
-        loadVehicleBrands();
-        loadContracts();
-      }
-    }, [isFocused]),
-  );
+  // Данные автоматически загружаются в хуках при изменении статуса сети
 
   useEffect(() => {
     if (contracts.length > 0 && !selectedContract) {
-      setSelectedContract(contracts[0].id.toString());
+      const firstContract = contracts[0];
+      setSelectedContract(firstContract.id.toString());
+      setSelectedContractNumber(firstContract.number);
     }
   }, [contracts, selectedContract]);
 
@@ -152,15 +138,11 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
         timePicker.find(time => time.value.toString() === values?.arrival)
           ?.label || 'Не выбрано';
 
-      // Находим название выбранного контракта
-      const selectedContractObj = contracts.find(
-        contract => contract.id.toString() === selectedContract,
-      );
-      const selectedContractLabel = selectedContractObj?.number || 'Не выбрано';
+      const selectedContractLabel = selectedContractNumber || 'Не выбрано';
 
       const data = {
         driverName: values?.driverName || '',
-        vehicleBrand: selectedVehicleBrand || 'Не выбрано',
+        vehicleBrand: selectedVehicleBrandName || 'Не выбрано',
         vehicleNumber: values?.vehicle_number || '',
         contract: selectedContractLabel,
         arrivalTime: selectedTimeLabel,
@@ -186,7 +168,9 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
         counterparty_bin: user?.counterparty?.bin || '',
         contract_id: selectedContract || '',
         driver_info: values?.driverName || '',
-        vehicle_brand_id: selectedVehicleBrand || '',
+        vehicle_brand_id:
+          selectedVehicleBrand === 'custom' ? null : selectedVehicleBrand,
+        vehicle_brand: selectedVehicleBrandName,
         vehicle_number: values?.vehicle_number || '',
         departure_time: moment().format('YYYY-MM-DD HH:mm:ss'),
         estimated_arrival_time: Number(values?.arrival),
@@ -209,7 +193,7 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
         return;
       }
 
-      if (!selectedVehicleBrand) {
+      if (!selectedVehicleBrand && !selectedVehicleBrandName) {
         showValidationError('requiredField');
         return;
       }
@@ -245,10 +229,10 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
         const qrRequest = {
           id,
           counterparty_bin: user?.counterparty?.bin || '',
-          contract_id: selectedContract || '',
-          driver_info: values?.driverName || '',
-          vehicle_brand_id: selectedVehicleBrand || '',
           vehicle_number: values?.vehicle_number || '',
+          vehicle_brand: selectedVehicleBrandName,
+          driver_info: values?.driverName || '',
+          contract_number: selectedContractNumber,
           user_id: user?.id.toString() || '',
         };
 
@@ -334,7 +318,9 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
     setShowConfirmationModal(false);
     setConfirmationData(null);
     setSelectedVehicleBrand('');
+    setSelectedVehicleBrandName('');
     setSelectedContract('');
+    setSelectedContractNumber('');
     setSelectedArrivalTime('');
   };
 
@@ -381,52 +367,21 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
                 rules={[
                   {
                     required: selectedVehicleBrand ? false : true,
-                    message: 'Выберите марку автомобиля',
+                    message: 'Выберите или введите марку автомобиля',
                   },
                 ]}
               >
-                {vehicleBrandsLoading ? (
-                  <View style={styles.fieldLoadingContainer}>
-                    <ActivityIndicator size="small" color={COLORS.primary} />
-                  </View>
-                ) : vehicleBrands.length > 0 ? (
-                  <View style={styles.pickerContainer}>
-                    <Picker
-                      data={vehicleBrands.map(brand => ({
-                        label: brand.name,
-                        value: brand.id.toString(),
-                      }))}
-                      cols={1}
-                      value={[selectedVehicleBrand]}
-                      onChange={values =>
-                        setSelectedVehicleBrand(String(values[0]))
-                      }
-                      styles={{
-                        container: {
-                          backgroundColor: 'red',
-                        },
-                      }}
-                    >
-                      <List.Item
-                        align="middle"
-                        // arrow="horizontal"
-                        underlayColor="transparent"
-                        styles={{ Item: styles.listItem }}
-                      />
-                    </Picker>
-                    {!selectedVehicleBrand || selectedVehicleBrand === '' ? (
-                      <Text style={styles.placeholderText}>
-                        Выберите марку автомобиля
-                      </Text>
-                    ) : null}
-                  </View>
-                ) : (
-                  <View style={styles.noDataContainer}>
-                    <Text style={styles.noDataText}>
-                      {!isOnline ? 'Нет данных (оффлайн режим)' : 'Нет данных'}
-                    </Text>
-                  </View>
-                )}
+                <VehicleBrandSelector
+                  vehicleBrands={vehicleBrands}
+                  loading={vehicleBrandsLoading}
+                  selectedBrandId={selectedVehicleBrand}
+                  selectedBrandName={selectedVehicleBrandName}
+                  onBrandSelect={(id, name) => {
+                    setSelectedVehicleBrand(id);
+                    setSelectedVehicleBrandName(name);
+                  }}
+                  isOnline={isOnline || false}
+                />
               </Form.Item>
             </View>
 
@@ -478,9 +433,14 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
                       }))}
                       cols={1}
                       value={[selectedContract]}
-                      onChange={values =>
-                        setSelectedContract(String(values[0]))
-                      }
+                      onChange={values => {
+                        const contractId = String(values[0]);
+                        setSelectedContract(contractId);
+                        const contract = contracts.find(
+                          c => c.id.toString() === contractId,
+                        );
+                        setSelectedContractNumber(contract?.number || '');
+                      }}
                       styles={{
                         container: {
                           borderBottomWidth: 0,

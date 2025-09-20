@@ -31,9 +31,6 @@ export const testSpecificNotification = (
     case 'success':
       showBilingualToast('dataSaved', 'success');
       break;
-    case 'error':
-      showBilingualToast('serverError', 'error');
-      break;
     case 'warning':
       showBilingualToast('offlineMode', 'warning');
       break;
