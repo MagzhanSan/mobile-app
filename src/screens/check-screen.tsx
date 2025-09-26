@@ -8,7 +8,7 @@ import {
   Alert,
   BackHandler,
 } from 'react-native';
-import { Icon } from '@ant-design/react-native';
+import { Button, Icon } from '@ant-design/react-native';
 import { COLORS } from '../consts/colors';
 import { useAuth } from '../contexts/auth-context';
 import { VisionCameraScanner } from '../components/VisionCameraScanner';
@@ -18,16 +18,14 @@ import { RESULTS } from 'react-native-permissions';
 import { goToSettings } from '../utils/helpers';
 import { shipmentsApi } from '../api/shipments-api';
 import { Counterparty } from '../types/types';
-import { showPermissionError } from '../utils/notifications';
+import { showLogoutConfirm, showPermissionError } from '../utils/notifications';
 
 const CheckScreen: React.FC = () => {
   const { user, logout } = useAuth();
   const [isScanning, setIsScanning] = useState(false);
   const [scannedData, setScannedData] = useState<string | null>(null);
   const [isApprovalSheetVisible, setIsApprovalSheetVisible] = useState(false);
-  const [currentShipmentId, setCurrentShipmentId] = useState<
-    string | undefined
-  >();
+
   const [counterpartyData, setCounterpartyData] = useState<Counterparty>();
 
   const { askPermissions } = usePermissions(EPermissionTypes.CAMERA);
@@ -35,7 +33,6 @@ const CheckScreen: React.FC = () => {
   const handleCloseApprovalSheet = () => {
     setIsApprovalSheetVisible(false);
     setScannedData(null);
-    setCurrentShipmentId(undefined);
   };
 
   const takePermissions = async () => {
@@ -69,11 +66,8 @@ const CheckScreen: React.FC = () => {
     setScannedData(value);
     setIsScanning(false);
 
-    let shipmentId: string | undefined;
     try {
       const parsedData = JSON.parse(value);
-      shipmentId =
-        parsedData.id || parsedData.shipment_id || parsedData.shipmentId;
 
       shipmentsApi
         .getCounterpartyData(parsedData?.counterparty_bin)
@@ -83,8 +77,6 @@ const CheckScreen: React.FC = () => {
     } catch (error) {
       console.log('QR-код не содержит JSON данные');
     }
-
-    setCurrentShipmentId(shipmentId);
     setIsApprovalSheetVisible(true);
   };
 
@@ -168,7 +160,6 @@ const CheckScreen: React.FC = () => {
         isVisible={isApprovalSheetVisible}
         onClose={handleCloseApprovalSheet}
         qrData={scannedData || ''}
-        shipmentId={currentShipmentId}
       />
     </>
   );
@@ -319,6 +310,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.textSecondary,
     lineHeight: 20,
+  },
+  buttonWrapper: {
+    marginHorizontal: 16,
+    alignItems: 'center',
+  },
+  logoutBtn: {
+    width: '100%',
+    borderRadius: 8,
+    backgroundColor: '#FF4D4F',
   },
 });
 

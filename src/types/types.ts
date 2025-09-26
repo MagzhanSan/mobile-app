@@ -31,6 +31,7 @@ export type User = {
   };
   is_active: boolean;
   counterparty?: Counterparty | null;
+  prefix: string;
 };
 
 /** Модель пользователя, вложенная в контракт */
@@ -167,6 +168,7 @@ export interface Consignment {
 
 export interface Shipment {
   id: string;
+  prefix: string;
   driver_info: string;
   vehicle_number: string;
   vehicle_brand: VehicleBrand;
@@ -201,7 +203,7 @@ export interface Shipment {
 }
 
 export type ShipmentRequest = {
-  id: string;
+  id?: string;
   counterparty_bin: string;
   contract_id: string;
   driver_info: string;
@@ -214,6 +216,7 @@ export type ShipmentRequest = {
   departure_time: string;
   estimated_arrival_time: number;
   user_id: string;
+  prefix: string;
 };
 
 // Детальный рейс с логами

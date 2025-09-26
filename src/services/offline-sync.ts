@@ -69,11 +69,21 @@ export class OfflineSyncService {
         try {
           await updateOfflineShipmentStatus(shipment.id, 'syncing');
           await shipmentsApi.createShipment(shipment.data);
-          await removeOfflineShipment(shipment.id);
+          await updateOfflineShipmentStatus(shipment.id, 'synced');
           console.log(`Successfully synced shipment: ${shipment.id}`);
-        } catch (error) {
+        } catch (error: any) {
           console.error(`Failed to sync shipment ${shipment.id}:`, error);
-          await updateOfflineShipmentStatus(shipment.id, 'failed');
+
+          // Если статус 403 (Forbidden), удаляем рейс без повторных попыток
+          if (error?.response?.status === 403) {
+            console.log(
+              `Removing shipment ${shipment.id} due to 403 Forbidden`,
+            );
+            await removeOfflineShipment(shipment.id);
+          } else {
+            // Для других ошибок помечаем как failed для повторной попытки
+            await updateOfflineShipmentStatus(shipment.id, 'failed');
+          }
         }
       }
 
@@ -83,6 +93,8 @@ export class OfflineSyncService {
         // Уведомляем о завершении синхронизации
         this.notifySyncComplete();
         await clearCache();
+        // Очищаем оффлайн рейсы после успешной синхронизации
+        await this.clearSyncedOfflineShipments();
       }
     } catch (error) {
       console.error('Error during offline sync:', error);
@@ -98,6 +110,27 @@ export class OfflineSyncService {
     return offlineShipments.filter(
       shipment => shipment.status === 'pending' || shipment.status === 'failed',
     ).length;
+  }
+
+  // Очистка синхронизированных оффлайн рейсов
+  private async clearSyncedOfflineShipments(): Promise<void> {
+    try {
+      const offlineShipments = await getOfflineShipments();
+      const syncedShipments = offlineShipments.filter(
+        shipment => shipment.status === 'synced',
+      );
+
+      // Удаляем все синхронизированные рейсы
+      for (const shipment of syncedShipments) {
+        await removeOfflineShipment(shipment.id);
+      }
+
+      console.log(
+        `Очищено ${syncedShipments.length} синхронизированных оффлайн рейсов`,
+      );
+    } catch (error) {
+      console.error('Ошибка очистки синхронизированных оффлайн рейсов:', error);
+    }
   }
 }
 

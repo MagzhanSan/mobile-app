@@ -9,8 +9,6 @@ const CACHE_KEYS = {
   LAST_UPDATE: 'shipments_last_update',
 };
 
-const MAX_CACHED_SHIPMENTS = 20;
-
 export interface CachedShipments {
   shipments: Shipment[];
   lastUpdated: string;
@@ -33,11 +31,8 @@ export const cacheShipments = async (
   filterStatus: string = '',
 ): Promise<void> => {
   try {
-    // Берем только последние 20 рейсов
-    const limitedShipments = shipments.slice(0, MAX_CACHED_SHIPMENTS);
-
     const cachedData: CachedShipments = {
-      shipments: limitedShipments,
+      shipments: shipments,
       lastUpdated: new Date().toISOString(),
       filterStatus,
     };
@@ -46,10 +41,10 @@ export const cacheShipments = async (
       CACHE_KEYS.SHIPMENTS,
       JSON.stringify(cachedData),
     );
-    console.log(`Кэшировано ${limitedShipments.length} рейсов`);
+    console.log(`Кэшировано ${shipments.length} рейсов`);
 
     // Также кэшируем базовые данные каждого рейса отдельно
-    for (const shipment of limitedShipments) {
+    for (const shipment of shipments) {
       await cacheBasicShipmentData(shipment);
     }
   } catch (error) {
@@ -185,6 +180,43 @@ export const getLastCacheUpdate = async (): Promise<Date | null> => {
   }
 };
 
+// Добавляем новый рейс в кэш (для онлайн и офлайн рейсов)
+export const addShipmentToCache = async (
+  shipment: Shipment,
+): Promise<void> => {
+  try {
+    const cached = await getCachedShipments();
+    
+    if (cached) {
+      console.log('Обновляем существующий кэш с новым рейсом...');
+      // Добавляем новый рейс в начало списка
+      const updatedShipments = [shipment, ...cached.shipments];
+
+      const updatedCachedData: CachedShipments = {
+        shipments: updatedShipments,
+        lastUpdated: new Date().toISOString(),
+        filterStatus: cached.filterStatus,
+      };
+
+      await AsyncStorage.setItem(
+        CACHE_KEYS.SHIPMENTS,
+        JSON.stringify(updatedCachedData),
+      );
+
+      // Также кэшируем базовые данные нового рейса
+      await cacheBasicShipmentData(shipment);
+
+      console.log(`Рейс ${shipment.id} добавлен в кэш`);
+    } else {
+      console.log('Создаем новый кэш с рейсом...');
+      // Создаем новый кэш с одним рейсом
+      await cacheShipments([shipment], '');
+    }
+  } catch (error) {
+    console.error('Ошибка добавления рейса в кэш:', error);
+  }
+};
+
 // Добавляем офлайн рейс в кэш списка рейсов
 export const addOfflineShipmentToCache = async (
   offlineShipment: any,
@@ -215,6 +247,8 @@ export const addOfflineShipmentToCache = async (
 
     const shipment: Shipment = {
       id: offlineShipment.id,
+      prefix: userData?.prefix || '',
+      declined_reason: null,
       driver_info: offlineShipment.driver_info || '',
       vehicle_number: offlineShipment.vehicle_number || '',
       vehicle_brand: {
@@ -233,6 +267,7 @@ export const addOfflineShipmentToCache = async (
         },
         is_active: userData?.is_active ?? true,
         counterparty: userData?.counterparty || null,
+        prefix: userData?.prefix || '',
       },
       contract: {
         id: parseInt(offlineShipment.contract_id) || 0,
@@ -296,11 +331,8 @@ export const addOfflineShipmentToCache = async (
       // Добавляем офлайн рейс в начало списка
       const updatedShipments = [shipment, ...cached.shipments];
 
-      // Ограничиваем количество рейсов
-      const limitedShipments = updatedShipments.slice(0, MAX_CACHED_SHIPMENTS);
-
       const updatedCachedData: CachedShipments = {
-        shipments: limitedShipments,
+        shipments: updatedShipments,
         lastUpdated: new Date().toISOString(),
         filterStatus: cached.filterStatus,
       };

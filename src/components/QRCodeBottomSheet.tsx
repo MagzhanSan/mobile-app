@@ -1,5 +1,11 @@
-import React, { useRef } from 'react';
-import { View, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  ScrollView,
+} from 'react-native';
 import { Text } from './CustomText';
 import { Icon, Input } from '@ant-design/react-native';
 import { COLORS } from '../consts/colors';
@@ -12,15 +18,30 @@ interface QRCodeBottomSheetProps {
   isVisible: boolean;
   onClose: () => void;
   qrData?: string;
+  prefix?: string;
 }
 
 const QRCodeBottomSheet: React.FC<QRCodeBottomSheetProps> = ({
   isVisible,
   onClose,
   qrData,
+  prefix,
 }) => {
   const { user } = useAuth();
   const viewShotRef = useRef<ViewShot>(null);
+
+  // Парсим данные из QR кода
+  const parseQRData = () => {
+    if (!qrData) return null;
+    try {
+      return JSON.parse(qrData);
+    } catch (error) {
+      console.error('Ошибка парсинга QR данных:', error);
+      return null;
+    }
+  };
+
+  const qrDataParsed = parseQRData();
 
   const handleShareQR = async () => {
     try {
@@ -30,10 +51,25 @@ const QRCodeBottomSheet: React.FC<QRCodeBottomSheetProps> = ({
       }
 
       const uri = await viewShotRef.current.capture();
-      
+
+      let message = `QR-код для ${user?.counterparty?.name || 'организации'}\n`;
+      message += `БИН: ${user?.counterparty?.bin || 'Не указан'}\n`;
+
+      if (qrDataParsed) {
+        message += `Номер ТС: ${qrDataParsed.vehicle_number || 'Не указан'}\n`;
+        message += `Марка ТС: ${qrDataParsed.vehicle_brand || 'Не указана'}\n`;
+        message += `Серия ТТН: ${prefix || 'Не указан'}\n`;
+        message += `Данные водителя: ${
+          qrDataParsed.driver_info || 'Не указаны'
+        }\n`;
+        message += `Номер контракта: ${
+          qrDataParsed.contract_number || 'Не указан'
+        }`;
+      }
+
       const shareOptions = {
-        title: 'QR-код',
-        message: `QR-код для ${user?.counterparty?.name || 'организации'}`,
+        title: 'QR-код рейса',
+        message,
         url: `file://${uri}`,
         type: 'image/png',
       };
@@ -60,32 +96,61 @@ const QRCodeBottomSheet: React.FC<QRCodeBottomSheetProps> = ({
           </TouchableOpacity>
         </View>
 
-        <View style={styles.qrContainer}>
-          <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 0.9 }}>
-            <View style={styles.qrPlaceholder}>
-              <View
-                style={{
-                  marginBottom: 10,
-                }}
-              >
-                <Text style={styles.title}>{user?.counterparty?.name}</Text>
-                <Text style={styles.subtitle}>{user?.counterparty?.bin}</Text>
-              </View>
-              <QRCode value={qrData} size={200} />
-            </View>
-          </ViewShot>
-        </View>
+        <ScrollView
+          style={styles.scrollContainer}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+        >
+          <View style={styles.qrContainer}>
+            <ViewShot
+              ref={viewShotRef}
+              options={{ format: 'png', quality: 0.9 }}
+            >
+              <View style={styles.qrPlaceholder}>
+                <View style={styles.headerInfo}>
+                  <Text style={styles.title}>{user?.counterparty?.name}</Text>
+                  <Text style={styles.subtitle}>{user?.counterparty?.bin}</Text>
+                </View>
 
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.shareButton} onPress={handleShareQR}>
-            <Icon name="share-alt" size={20} color="#fff" />
-            <Text style={styles.shareButtonText}>Поделиться</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.actionButton} onPress={onClose}>
-            <Text style={styles.actionButtonText}>Закрыть</Text>
-          </TouchableOpacity>
-        </View>
+                {qrDataParsed && (
+                  <View style={styles.shipmentInfo}>
+                    <Text style={styles.infoLabel}>Серия ТТН: {prefix}</Text>
+
+                    <Text style={styles.infoLabel}>
+                      Номер ТС: {qrDataParsed.vehicle_number || 'Не указан'}
+                    </Text>
+                    <Text style={styles.infoLabel}>
+                      Марка ТС: {qrDataParsed.vehicle_brand || 'Не указана'}
+                    </Text>
+                    <Text style={styles.infoLabel}>
+                      Данные водителя:{' '}
+                      {qrDataParsed.driver_info || 'Не указаны'}
+                    </Text>
+                    <Text style={styles.infoLabel}>
+                      Номер контракта:{' '}
+                      {qrDataParsed.contract_number || 'Не указан'}
+                    </Text>
+                  </View>
+                )}
+
+                <QRCode value={qrData} size={200} />
+              </View>
+            </ViewShot>
+          </View>
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={styles.shareButton}
+              onPress={handleShareQR}
+            >
+              <Icon name="share-alt" size={20} color="#fff" />
+              <Text style={styles.shareButtonText}>Поделиться</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionButton} onPress={onClose}>
+              <Text style={styles.actionButtonText}>Закрыть</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
       </View>
     </View>
   );
@@ -100,14 +165,17 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
-    zIndex: 1000,
+    zIndex: 9999,
+    elevation: 9999, // Для Android
   },
   container: {
     backgroundColor: COLORS.card,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
-    maxHeight: '80%',
+    height: '93%',
+    zIndex: 10000,
+    elevation: 10000, // Для Android
   },
   header: {
     flexDirection: 'row',
@@ -132,6 +200,9 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     alignItems: 'flex-end',
   },
+  scrollContainer: {
+    flex: 1,
+  },
   qrContainer: {
     alignItems: 'center',
     marginBottom: 20,
@@ -140,8 +211,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 30,
     backgroundColor: '#f8f9fa',
+    width: '90%',
     borderRadius: 12,
     marginBottom: 20,
+  },
+  headerInfo: {
+    marginBottom: 15,
+    alignItems: 'center',
+  },
+  shipmentInfo: {
+    marginBottom: 15,
+    padding: 10,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  infoLabel: {
+    fontSize: 12,
+    color: COLORS.textPrimary,
+    marginBottom: 4,
+    fontWeight: '500',
   },
   qrText: {
     marginTop: 10,

@@ -152,13 +152,14 @@ const ShipmentDetailsScreen = ({ navigation, route }: Props) => {
 
   const generateQRCode = () => {
     const qrRequest = {
-      id,
+      counterparty: shipment?.counterparty?.name || '',
       counterparty_bin: shipment.counterparty?.bin || '',
       vehicle_number: shipment.vehicle_number || '',
       vehicle_brand: shipment.vehicle_brand?.name || '',
       driver_info: shipment.driver_info || '',
       contract_number: shipment.contract?.number || '',
       user_id: shipment.user?.id || '',
+      prefix: shipment.prefix || '',
     };
 
     setQrData(JSON.stringify(qrRequest));
@@ -502,6 +503,7 @@ const ShipmentDetailsScreen = ({ navigation, route }: Props) => {
       </View>
 
       <QRCodeBottomSheet
+        prefix={shipment.prefix}
         isVisible={showQRSheet}
         onClose={() => setShowQRSheet(false)}
         qrData={qrData}

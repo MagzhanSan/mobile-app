@@ -28,6 +28,8 @@ interface ShipmentConfirmationModalProps {
     counterpartyName?: string;
     counterpartyBin?: string;
     userInfo?: string;
+    prefix?: string;
+    shipmentCount?: number;
   };
 }
 
@@ -55,6 +57,15 @@ const ShipmentConfirmationModal: React.FC<ShipmentConfirmationModalProps> = ({
 
           <ScrollView>
             <List style={styles.list}>
+              <List.Item>
+                <View style={styles.fieldRow}>
+                  <Text style={styles.fieldLabel}>Серия ТТН:</Text>
+                  <Text style={styles.fieldValue}>
+                    {data.prefix}-{data.shipmentCount || ''}
+                  </Text>
+                </View>
+              </List.Item>
+
               <List.Item>
                 <View style={styles.fieldRow}>
                   <Text style={styles.fieldLabel}>Водитель:</Text>

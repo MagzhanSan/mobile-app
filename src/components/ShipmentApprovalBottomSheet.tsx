@@ -27,13 +27,12 @@ interface ShipmentApprovalBottomSheetProps {
   isVisible: boolean;
   onClose: () => void;
   qrData: string;
-  shipmentId?: string;
   counterpartyData?: Counterparty;
 }
 
 const ShipmentApprovalBottomSheet: React.FC<
   ShipmentApprovalBottomSheetProps
-> = ({ isVisible, onClose, qrData, shipmentId, counterpartyData }) => {
+> = ({ isVisible, onClose, qrData, counterpartyData }) => {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -104,11 +103,6 @@ const ShipmentApprovalBottomSheet: React.FC<
   const handleAccept = async (
     status?: 'accepted' | 'declined' | 'left' | 'arrived',
   ) => {
-    if (!shipmentId) {
-      showBilingualAlert('error', 'unknownError');
-      return;
-    }
-
     // Валидация для лаборанта
     if (userRole === 'lab_assistant') {
       if (generalContamination && !validatePercentage(generalContamination)) {
@@ -172,7 +166,7 @@ const ShipmentApprovalBottomSheet: React.FC<
             general_contamination: parseFloat(generalContamination) || 0,
             sugar_content: parseFloat(sugarContent) || 0,
           };
-          await shipmentsApi.updateShipment(shipmentId, updateData);
+          await shipmentsApi.updateShipment(updateData);
           break;
 
         case 'pile_operator':
@@ -180,7 +174,7 @@ const ShipmentApprovalBottomSheet: React.FC<
           updateData = {
             pile_number: !needPileNumber ? pileNumber : -1,
           };
-          await shipmentsApi.updateShipment(shipmentId, updateData);
+          await shipmentsApi.updateShipment(updateData);
           break;
 
         case 'boom_operator':
@@ -188,7 +182,7 @@ const ShipmentApprovalBottomSheet: React.FC<
           updateData = {
             boom_number: boomNumber,
           };
-          await shipmentsApi.updateShipment(shipmentId, updateData);
+          await shipmentsApi.updateShipment(updateData);
           break;
 
         case 'security':

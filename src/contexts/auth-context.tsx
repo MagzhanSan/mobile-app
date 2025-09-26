@@ -61,7 +61,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error) {
       Alert.alert(
         'Ошибка входа - Кіру сәтсіз',
-        (error as any)?.message.includes('401') ? 'Неверный email или пароль\nҚате email немесе құпиясөз' : 'Произошла ошибка\nҚате орын алды'
+        (error as any)?.message.includes('401')
+          ? 'Неверный email или пароль\nҚате email немесе құпиясөз'
+          : 'Произошла ошибка\nҚате орын алды',
       );
       throw error;
     } finally {

@@ -35,8 +35,15 @@ import { useVehicleBrand } from '../dictionaries/use-vehicle-brand';
 import { useContracts } from '../dictionaries/use-contracts';
 import { shipmentsApi } from '../api/shipments-api';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
-import { addOfflineShipment } from '../utils/offline-storage';
-import { addOfflineShipmentToCache } from '../utils/cache-utils';
+import {
+  addOfflineShipment,
+  getOfflineShipments,
+} from '../utils/offline-storage';
+import {
+  addOfflineShipmentToCache,
+  addShipmentToCache,
+  getLastCacheUpdate,
+} from '../utils/cache-utils';
 import { offlineSyncService } from '../services/offline-sync';
 import { Text } from '../components/CustomText';
 import { timePicker } from '../consts/timepickert';
@@ -46,12 +53,21 @@ import {
   showShipmentCreated,
   showNetworkError,
 } from '../utils/notifications';
+import { getNetworkErrorInfo } from '../utils/network-utils';
 
 const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
-  const { vehicleBrands, loading: vehicleBrandsLoading } = useVehicleBrand();
-  const { contracts, loading: contractsLoading } = useContracts();
+  const {
+    vehicleBrands,
+    loading: vehicleBrandsLoading,
+    load: loadVehicleBrands,
+  } = useVehicleBrand();
+  const {
+    contracts,
+    loading: contractsLoading,
+    load: loadContracts,
+  } = useContracts();
   const { user } = useAuth();
-  const { isOnline } = useNetworkStatus();
+  const { isOnline, isLoading } = useNetworkStatus();
   const isFocused = useIsFocused();
 
   const [loading, setLoading] = useState(false);
@@ -67,8 +83,43 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
     useState<string>('');
   const [selectedArrivalTime, setSelectedArrivalTime] = useState<string>('');
   const [confirmationData, setConfirmationData] = useState<any>(null);
+  const [shipmentCount, setShipmentCount] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
 
   const [form] = Form.useForm();
+
+  const loadShipments = async () => {
+    try {
+      setRefreshing(true);
+      // Загружаем все рейсы без фильтра статуса
+      const { shipments } = await shipmentsApi.getShipments('');
+      setShipmentCount(shipments.length);
+    } catch (error: any) {
+      const errorMessage = getNetworkErrorInfo(error);
+      showNetworkError();
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  // Получаем актуальное количество рейсов (только онлайн, без офлайн)
+  const getActualShipmentCount = async (): Promise<number> => {
+    try {
+      // Получаем только онлайн рейсы
+      const { shipments } = await shipmentsApi.getShipments('');
+      const onlineCount = shipments.length;
+      
+      console.log('📊 Подсчет рейсов (только онлайн):', {
+        onlineCount,
+        note: 'Офлайн рейсы не считаем, чтобы избежать двойного подсчета'
+      });
+      
+      return onlineCount;
+    } catch (error) {
+      console.error('Ошибка получения количества рейсов:', error);
+      return shipmentCount; // Возвращаем текущее значение в случае ошибки
+    }
+  };
 
   // Проверяем количество оффлайн рейсов
   useEffect(() => {
@@ -79,7 +130,6 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
     checkOfflineCount();
   }, []);
 
-  // Синхронизируем оффлайн рейсы при появлении интернета
   useEffect(() => {
     if (isOnline === true && offlineCount > 0) {
       offlineSyncService.syncOfflineShipments();
@@ -87,13 +137,22 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
     }
   }, [isOnline, offlineCount]);
 
-  // Перерендериваем страницу каждый раз при фокусе
+  useEffect(() => {
+    if (isFocused && !isLoading) {
+      loadVehicleBrands();
+      loadContracts();
+      loadShipments();
+    }
+  }, [isFocused, isLoading]);
+
   useEffect(() => {
     if (isFocused) {
-      // Сбрасываем форму при каждом входе на страницу
       form.resetFields();
       setQrData('');
       setShowQRSheet(false);
+      loadVehicleBrands();
+      loadContracts();
+      loadShipments();
 
       // Обновляем количество оффлайн рейсов
       const checkOfflineCount = async () => {
@@ -103,8 +162,6 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
       checkOfflineCount();
     }
   }, [isFocused]);
-
-  // Данные автоматически загружаются в хуках при изменении статуса сети
 
   useEffect(() => {
     if (contracts.length > 0 && !selectedContract) {
@@ -118,7 +175,6 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
     try {
       const values = await form.validateFields();
 
-      // Функция для конвертации минут в часы и минуты
       const formatTimeFromMinutes = (minutes: number | string) => {
         const mins = Number(minutes);
         if (isNaN(mins)) return 'Не выбрано';
@@ -133,7 +189,6 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
         }
       };
 
-      // Находим название выбранного времени
       const selectedTimeLabel =
         timePicker.find(time => time.value.toString() === values?.arrival)
           ?.label || 'Не выбрано';
@@ -146,6 +201,8 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
         vehicleNumber: values?.vehicle_number || '',
         contract: selectedContractLabel,
         arrivalTime: selectedTimeLabel,
+        prefix: user?.prefix,
+        shipmentCount: shipmentCount + 1, // Используем текущее количество + 1
       };
 
       setConfirmationData(data);
@@ -161,10 +218,9 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
       const values = await form.validateFields();
 
       setLoading(true);
-      const id = uuid.v4().toString();
+      // const id = uuid.v4().toString();
 
       const payload: ShipmentRequest = {
-        id,
         counterparty_bin: user?.counterparty?.bin || '',
         contract_id: selectedContract || '',
         driver_info: values?.driverName || '',
@@ -175,6 +231,9 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
         departure_time: moment().format('YYYY-MM-DD HH:mm:ss'),
         estimated_arrival_time: Number(values?.arrival),
         user_id: user?.id.toString() || '',
+        prefix:
+          confirmationData?.prefix + '-' + confirmationData?.shipmentCount ||
+          '',
       };
 
       // Дополнительная валидация перед отправкой
@@ -218,36 +277,49 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
         return;
       }
 
-      // Проверяем, что время прибытия в будущем
-      // const arrivalTime = moment(payload.estimated_arrival_time);
-      // if (arrivalTime.isBefore(moment())) {
-      //   Toast.fail('Предполагаемое время прибытия должно быть в будущем');
-      //   return;
-      // }
-
       try {
+        // Получаем актуальное количество рейсов только один раз
+        const actualCount = await getActualShipmentCount();
+        const nextShipmentNumber = actualCount + 1;
+        
+        console.log('🔢 Количество рейсов для расчета номера:', {
+          actualCount,
+          nextShipmentNumber,
+          isOnline,
+          note: 'Считаем только онлайн рейсы, офлайн рейсы не учитываем'
+        });
+        
         const qrRequest = {
-          id,
+          counterparty: user?.counterparty?.name || '',
           counterparty_bin: user?.counterparty?.bin || '',
           vehicle_number: values?.vehicle_number || '',
           vehicle_brand: selectedVehicleBrandName,
           driver_info: values?.driverName || '',
           contract_number: selectedContractNumber,
           user_id: user?.id.toString() || '',
+          prefix: user?.prefix + '-' + nextShipmentNumber,
         };
 
         setQrData(JSON.stringify(qrRequest));
         setShowQRSheet(true);
 
         if (isOnline === true) {
-          await shipmentsApi.createShipment(payload);
+          const createdShipment = await shipmentsApi.createShipment(payload);
+          try {
+            await addShipmentToCache(createdShipment);
+          } catch (cacheError) {
+            console.error('Ошибка добавления в кэш:', cacheError);
+          }
           showShipmentCreated();
         } else {
+          // Для офлайн рейсов используем номер, который уже рассчитали
           await addOfflineShipment(payload);
           try {
             await addOfflineShipmentToCache(payload, user);
           } catch (cacheError) {
             console.error('Ошибка добавления в кэш:', cacheError);
+          } finally {
+            loadShipments();
           }
           setOfflineCount(prev => prev + 1);
           showBilingualToast('offlineDataAvailable', 'info');
@@ -272,17 +344,22 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
           } catch (cacheError) {
             console.error('Ошибка добавления в кэш:', cacheError);
             // Продолжаем работу даже если кэш не обновился
+          } finally {
+            loadShipments();
           }
           setOfflineCount(prev => prev + 1);
           showBilingualToast('offlineDataAvailable', 'info');
           form.resetFields();
         }
+      } finally {
+        loadShipments();
       }
     } catch (validationError) {
       console.error('Form validation error:', validationError);
       showValidationError('requiredField');
     } finally {
       setLoading(false);
+      loadShipments();
     }
   };
 
@@ -324,17 +401,6 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
     setSelectedArrivalTime('');
   };
 
-  const calculateNetWeight = (grossWeight: string, tareWeight: string) => {
-    if (grossWeight && tareWeight) {
-      const gross = parseFloat(grossWeight);
-      const tare = parseFloat(tareWeight);
-      if (!isNaN(gross) && !isNaN(tare) && gross >= tare) {
-        const net = gross - tare;
-        form.setFieldsValue({ net_weight: net.toFixed(2) });
-      }
-    }
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -373,7 +439,7 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
               >
                 <VehicleBrandSelector
                   vehicleBrands={vehicleBrands}
-                  loading={vehicleBrandsLoading}
+                  loading={vehicleBrandsLoading || isLoading}
                   selectedBrandId={selectedVehicleBrand}
                   selectedBrandName={selectedVehicleBrandName}
                   onBrandSelect={(id, name) => {
@@ -408,7 +474,6 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
                 />
               </Form.Item>
             </View>
-
             <View style={styles.fieldContainer}>
               <Text style={styles.fieldLabel}>Контракт *</Text>
               <Form.Item
@@ -420,7 +485,7 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
                   },
                 ]}
               >
-                {contractsLoading ? (
+                {contractsLoading || isLoading ? (
                   <View style={styles.fieldLoadingContainer}>
                     <ActivityIndicator size="small" color={COLORS.primary} />
                   </View>
@@ -536,6 +601,9 @@ const CreateShipmentScreen = ({ navigation }: { navigation: any }) => {
         isVisible={showQRSheet}
         onClose={() => setShowQRSheet(false)}
         qrData={qrData}
+        prefix={
+          confirmationData?.prefix + '-' + confirmationData?.shipmentCount || ''
+        }
       />
 
       {confirmationData && (

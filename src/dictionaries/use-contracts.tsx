@@ -10,9 +10,13 @@ import { useNetworkStatus } from '../hooks/useNetworkStatus';
 export const useContracts = () => {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
-  const { isOnline } = useNetworkStatus();
+  const { isOnline, isLoading } = useNetworkStatus();
 
   const loadContracts = async (forceRefresh = false) => {
+    if (isLoading) {
+      return;
+    }
+
     setLoading(true);
     try {
       if (isOnline === true || forceRefresh) {
@@ -22,19 +26,6 @@ export const useContracts = () => {
       } else if (isOnline === false) {
         const offlineContracts = await getOfflineContracts();
         setContracts(offlineContracts);
-      } else {
-        try {
-          const contractsData = await getContracts();
-          setContracts(contractsData);
-          await saveContracts(contractsData);
-        } catch (networkError) {
-          console.log(
-            'Network error, loading from offline storage:',
-            networkError,
-          );
-          const offlineContracts = await getOfflineContracts();
-          setContracts(offlineContracts);
-        }
       }
     } catch (error) {
       console.error('Error loading contracts:', error);
@@ -44,10 +35,6 @@ export const useContracts = () => {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    loadContracts();
-  }, []);
 
   return { contracts, loading, load: loadContracts };
 };
